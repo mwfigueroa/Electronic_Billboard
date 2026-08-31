@@ -1,0 +1,11 @@
+# Fotos y archivos pesados de referencia (documentar en releases, no en git)
+hardware/fotos/*.JPG
+hardware/fotos/*.jpg
+hardware/fotos/*.HEIC
+*.zip
+*.rar
+*.step.bak
+
+# OS
+.DS_Store
+Thumbs.db
