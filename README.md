@@ -71,7 +71,9 @@ El cableado de potencia 5 V es idéntico en ambas: una fuente por fila con dos i
 │   ├── 08_hub75e_y_panel_p5.md  Señales HUB75E y ficha de compra del panel
 │   ├── 09_firmware_propio_hd_wf4.md Análisis del firmware ESP-IDF sobre HD-WF4 (superado)
 │   ├── 10_plataforma_driver.md  Elección de plataforma del driver — registro de decisión
-│   └── 11_arquitectura_colorlight_5a75b.md Arquitectura del driver sobre FPGA ECP5
+│   ├── 11_arquitectura_colorlight_5a75b.md Arquitectura del driver sobre FPGA ECP5
+│   ├── 12_referencias_tecnicas.md Datasheets, pinout de placa y entorno de desarrollo
+│   └── 13_bom_desarrollo.md     Hardware de banco para desarrollar el driver
 └── hardware/                    (futuro: planos, CAD, fotos)
 ```
 

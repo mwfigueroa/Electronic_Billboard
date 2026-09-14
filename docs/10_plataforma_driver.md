@@ -115,7 +115,7 @@ Es la arquitectura de la opción C, ya construida y documentada:
 | FPGA | Lattice **ECP5-25** (LFE5U-25F): 24.300 LUT, **1.008 Kbit EBR** |
 | Buses paralelos | **8 puertos HUB75** — exacto para 16 módulos, 2 por puerto |
 | Level shifters 3,3 → 5 V | Ya instalados en la placa |
-| Memoria de frame | 2× SDRAM 1M×16 = 4 MB, más 126 KB de BRAM interna |
+| Memoria de frame | SDRAM en placa (4 u 8 MB según revisión) más 126 KB de BRAM interna |
 | Red | 2× PHY Gigabit Ethernet |
 | Toolchain | **Yosys + nextpnr-ecp5 + Project Trellis, 100 % abierto** |
 | Framework | Soporte de primera clase en **LiteX** (`colorlight_5a_75b`) |
@@ -138,7 +138,7 @@ Incluso a un clock conservador de 12,5 MHz se obtienen 5 bits/color a ~197 Hz, p
 | Buses RGB simultáneos | 2 (bancos) | 4 | 8 | **8** |
 | Clocks/bitplane | 8.192 | 4.096 | 2.048 | **2.048** |
 | Mejor punto realista | 4 bit @ 130 Hz | 5 bit @ 197 Hz | — | **5 bit @ 394 Hz** |
-| Memoria de frame | No | PSRAM | **Insuficiente** | BRAM + 4 MB SDRAM |
+| Memoria de frame | No | PSRAM | **Insuficiente** | BRAM + 4–8 MB SDRAM |
 | Etapa de salida 5 V | Incluida | **A diseñar** | **A diseñar** | Incluida |
 | Conectores HUB75 | 4 | **A diseñar** | **A diseñar** | 8 |
 | Toolchain | ESP-IDF | ESP-IDF | Quartus (propietario) | **Abierto** |

@@ -2,25 +2,29 @@
 
 Plataforma adoptada en [`10_plataforma_driver.md`](10_plataforma_driver.md). Este documento define la arquitectura del sistema, el punto de operación y el plan de bring-up del driver propio.
 
-> **No sobrescribir el flash de configuración sin respaldo previo.** La 5A-75B arranca desde una SPI flash 25Q16 con el bitstream de fábrica. Volcar esa imagen completa antes de escribir nada.
+> **No sobrescribir el flash de configuración sin respaldo previo.** La 5A-75B arranca desde su SPI flash con el bitstream de fábrica. Volcar esa imagen completa antes de escribir nada.
 
 ## La placa
 
+Datos de la **revisión 8.0**, que es la que se compra. Los componentes cambian entre revisiones — ver [`12_referencias_tecnicas.md`](12_referencias_tecnicas.md) para la tabla completa.
+
 | Elemento | Detalle |
 |---|---|
-| FPGA | Lattice ECP5 **LFE5U-25F**, 24.300 LUT, **1.008 Kbit** de BRAM (EBR) |
-| Salidas | **8 conectores HUB75** con level shifters 3,3 → 5 V en placa |
-| Memoria externa | 2× SDRAM 1M×16 (M12L16161A o equivalente) = **4 MB** |
-| Red | 2× PHY Gigabit Ethernet (Broadcom B50612D) |
-| Configuración | SPI flash 25Q16 (2 MB) |
-| Reloj | Oscilador de 25 MHz en placa |
+| FPGA | Lattice ECP5 **LFE5U-25F-6BG256C**, 24.300 LUT, **1.008 Kbit** de BRAM (EBR) |
+| Salidas | **8 conectores HUB75**, 56 salidas bufferadas por 12× 74HC245T a 5 V |
+| Memoria externa | SDRAM ESMT **M12L64322A**, 2M × 32 bit, 200 MHz = **8 MB** |
+| Red | 2× PHY Gigabit Ethernet Realtek **RTL8211FD** |
+| Configuración | SPI flash Winbond **25Q32JVSIQ**, 32 Mbit = 4 MB |
+| Reloj | 25 MHz generado por el PHY y distribuido al pin **P6** del FPGA |
 | Costo | USD 15–20 |
 
 ### Revisión a comprar
 
-La placa tiene variantes de hardware con **pinouts distintos**: 6.1, 7.0, 8.0 y 8.2. Esto no es un detalle menor — el mapeo de pines del FPGA a los conectores HUB75 cambia entre revisiones.
+La placa tiene variantes con **pinouts y componentes distintos**: 6.1, 7.0, 8.0 y 8.2. No es un detalle menor — cambian el encapsulado del FPGA, la SDRAM, el PHY y todo el mapeo de pines a los conectores HUB75.
 
-**Comprar revisión 8.0 u 8.2.** Son las que `litex-boards` soporta con LiteDRAM (controlador de SDRAM), lo que habilita usar los 4 MB de memoria externa sin escribir un controlador propio. Al recibir la placa, identificar la revisión serigrafiada y contrastarla contra [chubby75](https://github.com/q3k/chubby75/tree/master/5a-75b) antes de escribir una línea de HDL.
+**Comprar revisión 8.0 u 8.2.** Son las que `litex-boards` soporta con LiteDRAM, lo que habilita usar la memoria externa sin escribir un controlador propio, y las que tienen el pinout mejor documentado. La 6.1 además usa encapsulado CABGA381 en vez de CABGA256, así que ni siquiera comparte el archivo de restricciones.
+
+Al recibir la placa, identificar la revisión serigrafiada y contrastarla contra [chubby75](https://github.com/q3k/chubby75/tree/master/5a-75b). El pinout completo de la 8.0 y la tabla de diferencias entre revisiones están en [`12_referencias_tecnicas.md`](12_referencias_tecnicas.md).
 
 ## Arquitectura del sistema
 
@@ -30,12 +34,12 @@ La 5A-75B es una **placa receptora**: no tiene WiFi, RTC ni almacenamiento de pl
 flowchart TB
     subgraph Contenido["Capa de contenido"]
         CPU["SoC LiteX / VexRiscv<br/>dentro del ECP5<br/>playlist, horarios, NTP"]
-        Flash["SPI flash 25Q16<br/>bitstream + contenido"]
+        Flash["SPI flash 25Q32<br/>4 MB, bitstream + contenido"]
         Net["PHY Gigabit Ethernet<br/>LiteEth"]
     end
 
     subgraph FPGA["ECP5-25 — driver de panel"]
-        FB["Framebuffer RGB<br/>SDRAM 4 MB"]
+        FB["Framebuffer RGB<br/>SDRAM 8 MB"]
         Conv["Conversor RGB → bitplanes"]
         BP["Bitplanes<br/>BRAM interna"]
         Seq["Secuenciador BCM<br/>+ mapeo de scan 1/8"]
@@ -87,7 +91,7 @@ Los 1.008 Kbit de BRAM equivalen a **126 KB**. Un frame de 256 × 128 px ocupa:
 | 6 bits/color | 18 | 72 KB | 57 % | no entra |
 | 8 bits/color | 24 | 96 KB | 76 % | no entra |
 
-**Diseño adoptado**: los bitplanes viven en BRAM (acceso determinista, sin latencia de SDRAM en el camino crítico del refresco) y los frames RGB más el contenido viven en la SDRAM de 4 MB. El conversor RGB → bitplanes corre solo cuando cambia el contenido, no en cada refresco.
+**Diseño adoptado**: los bitplanes viven en BRAM (acceso determinista, sin latencia de SDRAM en el camino crítico del refresco) y los frames RGB más el contenido viven en la SDRAM de 8 MB. El conversor RGB → bitplanes corre solo cuando cambia el contenido, no en cada refresco.
 
 Esto evita el problema que descartó al EP4CE6: el refresco lee de memoria local rápida, y el enlace de contenido solo mueve datos cuando hay un cambio de slide — **~12 KB/s promedio en vez de 12,3 MB/s sostenidos**.
 
@@ -140,7 +144,7 @@ Recomendado: instalar vía [oss-cad-suite](https://github.com/YosysHQ/oss-cad-su
 
 - [ ] Fotografiar ambos lados, anotar revisión serigrafiada y contrastar con chubby75.
 - [ ] Verificar que sea revisión 8.0 u 8.2; si no, ajustar el archivo de plataforma de LiteX al pinout real.
-- [ ] Volcar la SPI flash 25Q16 completa antes de escribir nada.
+- [ ] Volcar la SPI flash completa (4 MB en rev 8.0) antes de escribir nada.
 - [ ] Instalar oss-cad-suite y cargar un bitstream de blink por JTAG (sin tocar la flash) para validar el flujo.
 
 ### Paso 1 — Un módulo, un puerto, sin BCM
@@ -197,7 +201,7 @@ Reemplazan a los de [`09_firmware_propio_hd_wf4.md`](09_firmware_propio_hd_wf4.m
 - **Variación de revisión de placa.** Los pinouts difieren entre 6.1, 7.0, 8.0 y 8.2. Comprar sin especificar revisión es comprar un pinout desconocido.
 - **IC driver del panel sin confirmar.** Si el módulo usa S-PWM interno (MBI5153, FM6353), el modelo BCM de este documento no aplica y el protocolo es otro. Ver [`08_hub75e_y_panel_p5.md`](08_hub75e_y_panel_p5.md).
 - **Mapeo de scan desconocido.** Es el riesgo de cronograma más grande del driver. Se mitiga consiguiendo el archivo de configuración del vendedor.
-- **Los level shifters de la placa** pueden ser 74HC245 en algunas revisiones, con umbrales de entrada distintos a los AHCT. Verificar contra chubby75.
+- **Los level shifters son 74HC245T**, no AHCT. Alimentados a 5 V, el umbral de entrada alto de la familia HC ronda 0,7 × VCC ≈ 3,5 V, por encima de los 3,3 V que entrega el FPGA. En la práctica estas placas funcionan —es su diseño de fábrica— pero el margen es escaso y puede degradarse con temperatura. Si aparecen bits inestables a clock alto, este es el primer sospechoso. Ver [`12_referencias_tecnicas.md`](12_referencias_tecnicas.md).
 - **Sin RTC ni WiFi en placa.** El reloj sale de NTP y la conectividad de un AP externo en el gabinete.
 - **Verilog es otra disciplina.** El proyecto pasa de depurar un sistema a depurar tres: HDL, capa de contenido y el enlace entre ambos.
 
