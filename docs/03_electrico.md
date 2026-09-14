@@ -1,5 +1,7 @@
 # 03 — Arquitectura eléctrica y cableado
 
+Ver el diagrama funcional completo en [`07_diagrama_bloques.md`](07_diagrama_bloques.md).
+
 ## Diagrama general
 
 ```
@@ -12,39 +14,57 @@
   [Breaker 2P 10A curva C]
         │
         ▼
-  [SPD tipo 2, 275 V] ──── a tierra
+  [Bornera de distribución L/N] ──► [SPD tipo 2, 275 V] ──► tierra
         │
-        ├──► [LRS-350-5 #1] 5V/60A ──► filas 1-2 (14 módulos) + controlador
-        ├──► [LRS-350-5 #2] 5V/60A ──► filas 3-4 (14 módulos)
-        └──► [LRS-350-5 #3] 5V/60A ──► respaldo/inyección de refuerzo
+        ├──► [LRS-350-5 #1] 5V/60A ──► fila 1 (4 módulos)
+        ├──► [LRS-350-5 #2] 5V/60A ──► fila 2 (4 módulos)
+        ├──► [LRS-350-5 #3] 5V/60A ──► fila 3 (4 módulos)
+        └──► [LRS-350-5 #4] 5V/60A ──► fila 4 (4 módulos) + HD-WF4
 ```
 
 ## Distribución 5 V
 
-**Principio**: cada módulo P5 consume hasta ~0,6 A por píxel blanco... valor práctico: hasta ~3,4 A pico por módulo (17 W). Reglas:
+**Principio**: el anuncio declara 800 W/m² máximo. Para un módulo de 0,0512 m², el diseño debe soportar 40,96 W o 8,19 A a 5 V por módulo. Confirmar que el módulo admite 5 V antes de comprar. Reglas:
 
-1. **Cable 12 AWG** mínimo para troncales de 5 V. Caída máxima aceptada: 0,2 V en el módulo más lejano.
-2. **Inyección en ambos extremos de cada fila** (7 módulos = 1,12 m por fila): la cadena de conectores del módulo no está pensada para transportar 20 A de punta a punta.
+1. **Cable 12 AWG** mínimo para cada rama de inyección de 5 V. Caída máxima aceptada: 0,2 V en el módulo más lejano.
+2. **Dos inyecciones independientes por fila**, una en cada extremo. Cada rama se protege con fusible de 20 A y transporta aproximadamente la mitad de los 32,77 A máximos de una fila.
 3. Balance de fuentes (config recomendada):
-   - Fuente 1: filas 1 y 2 (14 módulos, ~24 A promedio / 48 A pico)
-   - Fuente 2: filas 3 y 4 (14 módulos, ídem)
-   - Fuente 3: refuerzo de extremos de fila + controlador A35 (deja margen del ~30 %)
-4. **Fusible o polyfuse por fila** (5 A) opcional pero recomendado: un corto en un módulo no debe tirar toda la pantalla.
+    - Fuente 1: fila 1 (4 módulos, hasta 32,77 A pico).
+    - Fuente 2: fila 2 (ídem).
+    - Fuente 3: fila 3 (ídem).
+    - Fuente 4: fila 4 (ídem) y HD-WF4/ventilación mediante un fusible independiente de 2 A.
+4. **No unir salidas positivas de fuentes distintas**. Las cuatro salidas negativas se unen en un punto estrella de 0 V para compartir la referencia de datos.
 
-## Topología de datos (HUB75E)
+## Topología de datos (HUB75 / HUB75E)
 
 ```
-  Colorlight A35
-    ├── Puerto HUB75 #1 ──► fila 1 (7 módulos en cadena) ──┐
-    │                                    (continúa) ────────┴──► fila 2 (7 módulos)
-    └── Puerto HUB75 #2 ──► fila 3 (7 módulos) ──┐
-                                     (continúa) ──┴──► fila 4 (7 módulos)
+   Huidu HD-WF4
+     ├── Puerto HUB75 #1 ──► fila 1 (4 módulos en cadena)
+     ├── Puerto HUB75 #2 ──► fila 2 (4 módulos en cadena)
+     ├── Puerto HUB75 #3 ──► fila 3 (4 módulos en cadena)
+     └── Puerto HUB75 #4 ──► fila 4 (4 módulos en cadena)
 ```
 
-- 2 cadenas de 14 módulos (7+7 en serie por puerto) → refresco cómodo, flat cables cortos.
+- 4 cadenas de 4 módulos (una por puerto) → trazado simple, menor longitud de cadena y diagnóstico por fila.
 - Flat cables de 30–40 cm con clip: evitar los de 20 cm tensos y los de 50+ cm (integridad de señal).
 - El **GND de datos y de potencia deben ser comunes** (lo son por el conector del módulo). Verificar continuidad GND entre fuente y controlador.
-- Configurar el layout en LEDVISION: 2 receptores virtuales, scan 1/8 (típico P5 outdoor), mapeo fila por fila. Confirmar el scan real del módulo con el vendedor (varía: 1/8, 1/16).
+- Configurar el layout en HD2020 / HDSign: 256×128 px, cuatro puertos HUB75 y una fila física por puerto. El módulo declara scan 1/8; importar el archivo de configuración suministrado por el vendedor antes de energizar todas las filas.
+### Topología alternativa — Colorlight 5A-75B
+
+El driver propio usa otra placa y **otro reparto de cadenas**. Ver [`11_arquitectura_colorlight_5a75b.md`](11_arquitectura_colorlight_5a75b.md).
+
+```
+   Colorlight 5A-75B
+     ├── J1 ──► fila 1, módulos 1–2        ├── J5 ──► fila 3, módulos 1–2
+     ├── J2 ──► fila 1, módulos 3–4        ├── J6 ──► fila 3, módulos 3–4
+     ├── J3 ──► fila 2, módulos 1–2        ├── J7 ──► fila 4, módulos 1–2
+     └── J4 ──► fila 2, módulos 3–4        └── J8 ──► fila 4, módulos 3–4
+```
+
+- 8 cadenas de 2 módulos. Los ocho puertos transmiten **simultáneamente**, no alternados: es lo que baja el trabajo por bitplane de 8.192 a 2.048 clocks.
+- **El cableado de potencia 5 V no cambia**: sigue siendo una fuente LRS-350-5 por fila con dos inyecciones de 12 AWG. Solo cambia el reparto de los cables de datos.
+- La cantidad total de cables flat tampoco cambia: 16 en ambas topologías.
+- Cadenas más cortas mejoran la integridad de señal y permiten bajar el clock de píxel manteniendo el refresco.
 
 ## Mediciones de puesta en marcha
 
@@ -53,7 +73,7 @@
 | Tensión CA | entrada breaker | 220–240 V |
 | Tensión 5 V sin carga | bornes de cada LRS | 5,0–5,2 V (ajustar a 5,1 V) |
 | Tensión 5 V a full blanco | módulo más lejano de cada fuente | ≥ 4,85 V |
-| Corriente por fuente | pinza amperométrica DC | ≤ 45 A (pico) |
+| Corriente por fuente | pinza amperométrica DC | ≤ 35 A (pico por fila) |
 | Temperatura de fuentes | 1 h a full blanco | ≤ 60 °C (LRS-350 límite 70 °C) |
 
 ## Seguridad eléctrica (obligatorio)
@@ -67,6 +87,6 @@
 
 ## Cálculo del breaker
 
-- Pico total: 480 W (pantalla) + 15 W (controlador) ≈ 495 W
-- Corriente CA a 220 V con eficiencia 0,82 de las fuentes: 495/0,82/220 ≈ 2,7 A
-- **Breaker 2P 10 A curva C**: margen ×3,7 para inrush de arranque de fuentes conmutadas
+- Pico total: 655 W (pantalla) + 10 W (controladora/ventilación) ≈ 665 W
+- Corriente CA a 220 V con eficiencia 0,82 de las fuentes: 665/0,82/220 ≈ 3,7 A
+- **Breaker 2P 10 A curva C**: margen suficiente para operación continua e inrush de cuatro fuentes conmutadas
