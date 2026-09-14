@@ -1,6 +1,6 @@
-# 12 — Referencias técnicas: Colorlight 5A-75B, ECP5 y entorno de desarrollo
+# 12 — Referencias técnicas: hardware, FPGA, panel y entorno de desarrollo
 
-Índice de documentación técnica para el driver propio. Arquitectura y decisiones en [`11_arquitectura_colorlight_5a75b.md`](11_arquitectura_colorlight_5a75b.md) y [`10_plataforma_driver.md`](10_plataforma_driver.md).
+Índice de documentación técnica para el driver propio. Arquitectura y decisiones en [`10_plataforma_driver.md`](10_plataforma_driver.md), [`11_arquitectura_colorlight_5a75b.md`](11_arquitectura_colorlight_5a75b.md) y [`14_software_contenido.md`](14_software_contenido.md).
 
 > **La Colorlight 5A-75B no tiene documentación oficial del fabricante.** No hay datasheet, esquemático ni nota de aplicación publicada por Colorlight: es una placa comercial de cartelería, no una placa de desarrollo. Todo lo que se sabe proviene de **ingeniería inversa de la comunidad**, principalmente el proyecto [chubby75](https://github.com/q3k/chubby75).
 >
@@ -231,7 +231,58 @@ Lista de lo que **no** debe darse por cierto hasta comprobarlo, por ser dato de 
 - [ ] Que los 74HC245T conmuten limpio con entrada de 3,3 V al clock de trabajo elegido.
 - [ ] Tamaño real de la SPI flash, leyéndola completa antes de escribir.
 
-## 8. Orden de lectura sugerido
+## 8. Familias de IC driver de panel
+
+El modelo de IC driver del panel es la incógnita de mayor impacto del proyecto — ver [`08_hub75e_y_panel_p5.md`](08_hub75e_y_panel_p5.md). Esta sección acota cuán grande es esa incógnita.
+
+En circulación hay **más de 50 part numbers** entre Macroblock, Chipone, Fuman, Sitronix, Rongupai y clones. Pero para el driver no importan los part numbers: **colapsan en tres familias de comportamiento**, y solo la familia define la arquitectura. Dentro de una familia las diferencias son parámetros, no rediseño.
+
+| Familia | Comportamiento | Partes representativas |
+|---|---|---|
+| **A — Desplazamiento simple** | Shift, latch, `OE` controla brillo. Sin memoria ni PWM propio | ICN2037, **ICN2038S**, FM6124, MBI5024, MBI5026, MBI5124, DP5125D, GS6238S, DP3246, RUC7258, ICND2012, 74HC595 |
+| **B — Desplazamiento + configuración** | Misma arquitectura que A, pero exige un stream de inicialización antes de operar (ganancia de corriente y otros parámetros) | **FM6126A**, FM6126Q, FM6127, MBI5124 |
+| **C — S-PWM con memoria de frame** | Recibe el frame completo una vez, lo guarda en SRAM interna y genera su propio PWM con scrambling | MBI5051/5052/5053, MBI5152, **MBI5153**, MBI5253, MBI5264, **ICN2053**, ICND2055CP, FM6353, FM6373, RUL6024, HX6158SP, SM1620B |
+
+### Impacto sobre el proyecto
+
+| | Familia A | Familia B | Familia C |
+|---|---|---|---|
+| Modelo BCM de [`10`](10_plataforma_driver.md) y [`11`](11_arquitectura_colorlight_5a75b.md) | **Aplica tal cual** | Aplica | **No aplica** |
+| Trabajo adicional | Ninguno | Secuencia de init, ~1 día | Driver distinto, desde cero |
+| Código de comunidad reutilizable | Abundante | Abundante | **Escaso e incompleto** |
+
+La última fila es la que pesa. En Familia C no solo cambia el protocolo: **los proyectos open source grandes todavía no lo tienen resuelto.** El soporte de paneles PWM en `rpi-rgb-led-matrix` sigue abierto como *master bug*, y en `ESP32-HUB75-MatrixPanel-DMA` es una discusión, no una función. Implementarlo sería descifrar algo que la comunidad no terminó — semanas, no días.
+
+### Qué esperar en el panel candidato
+
+El módulo es P5 outdoor, scan 1/8, y el anuncio declara compatibilidad con Huidu, Novastar, Colorlight y Linsn. Eso inclina hacia **A o B**: el combo FM6126A / ICN2038S es el más común en paneles actuales de este tipo. No es garantía — las receptoras comerciales modernas también manejan S-PWM vía archivo de configuración, así que la compatibilidad declarada no descarta la Familia C.
+
+El sufijo **1921** del modelo probablemente refiera a 1920 Hz de refresco. En un panel de Familia A el refresco lo pone el controlador, no el panel, así que ese número puede ser lo que logra una receptora comercial, o la señal de que el IC genera su propio PWM. No es evidencia en ninguna dirección, pero sí algo a preguntar.
+
+### Cómo determinarlo
+
+De más a menos confiable:
+
+1. **Leer la serigrafía del IC** en el dorso del módulo. Definitivo. Con las dos muestras de Fase 0, una foto macro lo resuelve.
+2. El archivo de configuración del vendedor nombra el tipo de IC.
+3. Preguntarle al vendedor.
+
+### Convertir la incógnita en especificación
+
+Lo más útil de esta sección: **no hace falta descubrir el IC, se puede exigir.**
+
+Al pedir cotización, especificar módulos con **ICN2038S o FM6126A**. Son los más comunes en P5 outdoor, así que es un pedido razonable y sin sobreprecio para la mayoría de los vendedores. Si el vendedor no se compromete por escrito, conviene comprarle a otro.
+
+Eso elimina de raíz el riesgo de cronograma más grande del driver, y cuesta un renglón en un correo que hay que mandar igual.
+
+### Fuentes
+
+- [ESP32-HUB75-MatrixPanel-DMA — soporte de drivers con memoria interna](https://github.com/mrcodetastic/ESP32-HUB75-MatrixPanel-DMA/discussions/324)
+- [rpi-rgb-led-matrix — master bug de paneles PWM](https://github.com/hzeller/rpi-rgb-led-matrix/issues/466)
+- [MBI5153 datasheet](https://www.mblock.com.tw/upload/Datasheet/LED%20Driver%20IC/MBI5153/MBI5153%20Preliminary%20Datasheet%20_V1.00_EN.pdf)
+- [ESPHome HUB75 — chips soportados e incompatibles](https://beta.esphome.io/components/display/hub75/)
+
+## 9. Orden de lectura sugerido
 
 Para arrancar el driver sin leer 500 páginas:
 

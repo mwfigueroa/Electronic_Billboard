@@ -72,8 +72,9 @@ El cableado de potencia 5 V es idéntico en ambas: una fuente por fila con dos i
 │   ├── 09_firmware_propio_hd_wf4.md Análisis del firmware ESP-IDF sobre HD-WF4 (superado)
 │   ├── 10_plataforma_driver.md  Elección de plataforma del driver — registro de decisión
 │   ├── 11_arquitectura_colorlight_5a75b.md Arquitectura del driver sobre FPGA ECP5
-│   ├── 12_referencias_tecnicas.md Datasheets, pinout de placa y entorno de desarrollo
-│   └── 13_bom_desarrollo.md     Hardware de banco para desarrollar el driver
+│   ├── 12_referencias_tecnicas.md Datasheets, pinout, familias de IC y entorno de desarrollo
+│   ├── 13_bom_desarrollo.md     Hardware de banco para desarrollar el driver
+│   └── 14_software_contenido.md Modelo del software de contenido (PC y cartel)
 └── hardware/                    (futuro: planos, CAD, fotos)
 ```
 

@@ -84,6 +84,8 @@ Cada fila de cuatro módulos puede requerir hasta 163,84 W o 32,77 A. Por eso el
 ## Información que debe pedirse al vendedor
 
 > **Prioridad 1: el modelo de IC driver.** Define qué driver hay que escribir, no solo cómo configurarlo. Si el módulo usa un IC de desplazamiento simple (clase ICN2038S), vale el modelo de bitplanes BCM de [`10_plataforma_driver.md`](10_plataforma_driver.md). Si usa un IC con **S-PWM interno** (MBI5153, FM6353 y similares), el protocolo de carga es otro y el presupuesto de refresco deja de aplicar. Junto con el archivo de configuración, es lo que más condiciona el cronograma del driver.
+>
+> Las tres familias de IC, su impacto sobre el proyecto y cómo **exigir el modelo al comprar en vez de descubrirlo después** están en [`12_referencias_tecnicas.md`](12_referencias_tecnicas.md#8-familias-de-ic-driver-de-panel).
 
 - Hoja de datos del módulo y fotografía del frente, dorso y conectores.
 - **Modelo exacto de IC driver**, refresco y brillo medido; el anuncio solo declara scan 1/8.
