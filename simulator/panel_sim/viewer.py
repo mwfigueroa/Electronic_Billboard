@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import signal
 import socket
 import sys
 import threading
@@ -257,6 +258,17 @@ def run(
     pygame.display.set_caption("Simulador de panel — docs/14")
     clock = pygame.time.Clock()
 
+    # SDL captura SIGTERM/SIGINT pero no siempre termina el loop; con estos
+    # handlers la ventana se cierra limpio desde un script o un gestor.
+    quit_requested = False
+
+    def _request_quit(_signum, _frame):
+        nonlocal quit_requested
+        quit_requested = True
+
+    signal.signal(signal.SIGTERM, _request_quit)
+    signal.signal(signal.SIGINT, _request_quit)
+
     def make_hud_font(panel_width: int):
         size = min(18, max(11, (18 * (panel_width - 12)) // 360))
         return pygame.font.Font(None, size)
@@ -325,7 +337,7 @@ def run(
     running = True
     last_frame = None
 
-    while running:
+    while running and not quit_requested:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
