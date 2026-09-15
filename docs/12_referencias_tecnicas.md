@@ -294,3 +294,5 @@ Para arrancar el driver sin leer 500 páginas:
 6. El datasheet FPGA-DS-02012 — como consulta puntual, no de corrido.
 
 LiteX recién entra en el Paso 5 del bring-up, cuando haya que sumar red y contenido.
+
+El mapa integrado de la cadena completa —fuente, red, driver, panel y potencia— está en [`16_cadena_completa.md`](16_cadena_completa.md).

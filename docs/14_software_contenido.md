@@ -1,6 +1,6 @@
 # 14 — Modelo del software de contenido
 
-> **Estado: registrado, no implementado.** Documento de diseño. Define por dónde empezar a modelar la capa de software que produce lo que se muestra en la pantalla. Complementa a [`11_arquitectura_colorlight_5a75b.md`](11_arquitectura_colorlight_5a75b.md), que cubre el lado FPGA.
+> **Estado: núcleo implementado.** El pipeline descrito acá vive en [`../simulator/`](../simulator/README.md): playlist → canvas → gamma y cuantización → PNG, visor animado y vectores dorados de bitplanes. Las decisiones abiertas de la sección final siguen abiertas. Complementa a [`11_arquitectura_colorlight_5a75b.md`](11_arquitectura_colorlight_5a75b.md), que cubre el lado FPGA.
 
 ## Alcance
 
@@ -56,12 +56,14 @@ Es una duplicación deliberada, no un descuido. Conviene que ambas versiones com
 
 ## Por dónde empezar: el simulador de panel
 
-La primera pieza a construir es un **simulador**, no la UI ni el transporte. Del orden de 200 líneas:
+La primera pieza a construir es un **simulador**, no la UI ni el transporte:
 
 1. Lee una playlist declarativa.
 2. Compone cada slide a un canvas de 256 × 128.
 3. Aplica gamma y cuantiza a 4, 5 o 6 bits por color.
 4. Emite PNG **escalado con píxeles cuadrados visibles**, simulando el paso P5.
+
+> Implementado en [`../simulator/`](../simulator/README.md) (paquete `panel_sim`): el mismo pipeline, con salida PNG, visor animado en tiempo real y vectores dorados de bitplanes para los testbenches del HDL. La estimación de ~200 líneas quedó corta: son ~1.100 de código más ~540 de tests.
 
 Rinde cuatro cosas de una sola vez:
 
