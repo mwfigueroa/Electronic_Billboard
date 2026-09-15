@@ -12,3 +12,11 @@ Thumbs.db
 
 # Logs de herramientas (MCP, depuradores)
 logs/
+
+# Python (simulador de panel)
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+simulator/out/
+simulator/media/

@@ -1,0 +1,27 @@
+{
+  "format": "readmemh",
+  "width": 16,
+  "height": 8,
+  "depth": 5,
+  "gamma": 2.2,
+  "pattern": "R = x\u00b7255/(w\u22121), G = y\u00b7255/(h\u22121), B = 255 si (x+y) es impar, 0 si es par",
+  "layout": "planes[bit][canal][y][x]; bit 0 = LSB; x=0 = izquierda del canvas",
+  "mem_layout": "una l\u00ednea por y; d\u00edgito hex por cada 4 px; x=0 = bit menos significativo",
+  "files": {
+    "b0_r": "bitplane_b0_r.mem",
+    "b0_g": "bitplane_b0_g.mem",
+    "b0_b": "bitplane_b0_b.mem",
+    "b1_r": "bitplane_b1_r.mem",
+    "b1_g": "bitplane_b1_g.mem",
+    "b1_b": "bitplane_b1_b.mem",
+    "b2_r": "bitplane_b2_r.mem",
+    "b2_g": "bitplane_b2_g.mem",
+    "b2_b": "bitplane_b2_b.mem",
+    "b3_r": "bitplane_b3_r.mem",
+    "b3_g": "bitplane_b3_g.mem",
+    "b3_b": "bitplane_b3_b.mem",
+    "b4_r": "bitplane_b4_r.mem",
+    "b4_g": "bitplane_b4_g.mem",
+    "b4_b": "bitplane_b4_b.mem"
+  }
+}

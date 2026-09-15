@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "display": {
+    "width": 256,
+    "height": 128,
+    "depth": 5,
+    "gamma": 2.2,
+    "background": "#000000"
+  },
+  "slides": [
+    {
+      "type": "text",
+      "text": "BILLBOARD",
+      "size": 40,
+      "color": "#ffffff",
+      "duration": 4
+    },
+    {
+      "type": "text",
+      "text": "Cartel LED exterior · 1280 × 640 mm",
+      "size": 16,
+      "color": "#40ff80",
+      "scroll": "left",
+      "speed_px_s": 30,
+      "duration": 12
+    },
+    {
+      "type": "image",
+      "path": "logo.png",
+      "duration": 4
+    },
+    {
+      "type": "image",
+      "path": "escena.png",
+      "duration": 6
+    },
+    {
+      "type": "clock",
+      "format": "%H:%M:%S",
+      "size": 48,
+      "color": "#ffe040",
+      "duration": 8
+    },
+    {
+      "type": "color",
+      "color": "#102040",
+      "duration": 1.5
+    },
+    {
+      "type": "text",
+      "text": "P5 · 256×128 · 5 bits/color",
+      "size": 14,
+      "color": "#8080ff",
+      "duration": 5
+    }
+  ]
+}

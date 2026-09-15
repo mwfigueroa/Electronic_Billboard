@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "display": {
+    "width": 256,
+    "height": 128,
+    "depth": 5,
+    "gamma": 2.2,
+    "background": "#000000"
+  },
+  "slides": [
+    {
+      "type": "video",
+      "path": "../media/sintel_10s.mp4",
+      "duration": 10,
+      "loop": true
+    },
+    {
+      "type": "text",
+      "text": "VIDEO EN EL PANEL",
+      "size": 20,
+      "color": "#40ff80",
+      "duration": 4
+    }
+  ]
+}
