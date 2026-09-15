@@ -5,7 +5,7 @@
 VECDIR := ../simulator/vectors
 BUILD  := build
 
-SYNTH := rgb_to_bitplane bcm_sequencer hub75_serializer
+SYNTH := rgb_to_bitplane bcm_sequencer hub75_serializer bitplane_store
 
 .PHONY: all sim lint synth stats vectors clean help
 
@@ -17,9 +17,11 @@ $(BUILD):
 # --- Simulacion --------------------------------------------------------------
 # tb_rgb_to_bitplane: contra los vectores dorados del simulador.
 # tb_hub75_timing:    invariantes de temporizacion BCM/HUB75.
-sim: $(BUILD)/tb_rgb_to_bitplane.vvp $(BUILD)/tb_hub75_timing.vvp
+# tb_bitplane_store:  cadena conversor -> store -> lectura.
+sim: $(BUILD)/tb_rgb_to_bitplane.vvp $(BUILD)/tb_hub75_timing.vvp $(BUILD)/tb_bitplane_store.vvp
 	vvp $(BUILD)/tb_rgb_to_bitplane.vvp
 	vvp $(BUILD)/tb_hub75_timing.vvp
+	vvp $(BUILD)/tb_bitplane_store.vvp
 
 $(BUILD)/tb_rgb_to_bitplane.vvp: sim/tb_rgb_to_bitplane.v rtl/rgb_to_bitplane.v $(VECDIR)/manifest.json | $(BUILD)
 	iverilog -g2012 -Wall -DVECDIR=\"$(VECDIR)/\" -o $@ sim/tb_rgb_to_bitplane.v rtl/rgb_to_bitplane.v
@@ -27,11 +29,15 @@ $(BUILD)/tb_rgb_to_bitplane.vvp: sim/tb_rgb_to_bitplane.v rtl/rgb_to_bitplane.v 
 $(BUILD)/tb_hub75_timing.vvp: sim/tb_hub75_timing.v rtl/bcm_sequencer.v rtl/hub75_serializer.v | $(BUILD)
 	iverilog -g2012 -Wall -o $@ sim/tb_hub75_timing.v rtl/bcm_sequencer.v rtl/hub75_serializer.v
 
+$(BUILD)/tb_bitplane_store.vvp: sim/tb_bitplane_store.v rtl/rgb_to_bitplane.v rtl/bitplane_store.v $(VECDIR)/manifest.json | $(BUILD)
+	iverilog -g2012 -Wall -DVECDIR=\"$(VECDIR)/\" -o $@ sim/tb_bitplane_store.v rtl/rgb_to_bitplane.v rtl/bitplane_store.v
+
 # --- Verificacion estatica ---------------------------------------------------
 lint:
 	verilator --lint-only -Wall --top-module rgb_to_bitplane rtl/rgb_to_bitplane.v
 	verilator --lint-only -Wall --top-module bcm_sequencer rtl/bcm_sequencer.v
 	verilator --lint-only -Wall --top-module hub75_serializer rtl/hub75_serializer.v
+	verilator --lint-only -Wall --top-module bitplane_store rtl/bitplane_store.v
 
 # --- Sintesis (recursos; sin bitstream: falta el top de placa) ---------------
 synth: $(addprefix $(BUILD)/,$(addsuffix .json,$(SYNTH)))
@@ -44,6 +50,9 @@ $(BUILD)/bcm_sequencer.json: rtl/bcm_sequencer.v | $(BUILD)
 
 $(BUILD)/hub75_serializer.json: rtl/hub75_serializer.v | $(BUILD)
 	yosys -q -p 'synth_ecp5 -top hub75_serializer -json $@' rtl/hub75_serializer.v
+
+$(BUILD)/bitplane_store.json: rtl/bitplane_store.v | $(BUILD)
+	yosys -q -p 'synth_ecp5 -top bitplane_store -json $@' rtl/bitplane_store.v
 
 stats: synth
 	@for m in $(SYNTH); do \

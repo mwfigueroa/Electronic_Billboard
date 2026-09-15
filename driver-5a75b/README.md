@@ -13,7 +13,7 @@ dorados del simulador y la temporización BCM/HUB75.
 | `rgb_to_bitplane` | implementado y validado contra vectores |
 | `bcm_sequencer` | implementado, temporización verificada en testbench |
 | `hub75_serializer` ×8 | implementado (un puerto; se instancia ocho veces) |
-| `bitplane_store` | pendiente |
+| `bitplane_store` | implementado; escritura y lectura validadas contra vectores |
 | `scan_mapper` | pendiente — necesita panel (Paso 2) |
 
 ## rgb_to_bitplane
@@ -40,6 +40,22 @@ bit a bit: 1920 comparaciones (128 píxeles × 15 bits).
 Si el contrato de wire termina en "la PC manda bitplanes ya armados"
 (`docs/14`), este bloque no se instancia y la LUT se queda del lado software.
 
+## bitplane_store
+
+Memoria de bitplanes con dos puertos (escritura del conversor, lectura del
+futuro `scan_mapper`). Palabra = `3*DEPTH` bits de un píxel, empaquetada
+`[bit*3 + canal]` igual que la salida de `rgb_to_bitplane`, con dirección
+lineal `addr = y*WIDTH + x`. El testbench encadena conversor → store →
+lectura al revés y compara contra los planos reconstruidos de los vectores.
+
+Con los valores reales (256×128, 5 bits) la síntesis en ECP5 ocupa
+**30 bloques DP16KD de 56 (54 %)**: algo más que el 48 % estimado en
+`docs/11` porque una palabra de 15 bits no llena los 18 del primitivo.
+Entra cómodo, pero conviene saberlo si más adelante se quisiera doble buffer.
+El lado de lectura sirve una palabra por clock; el frente de serialización
+necesita dos píxeles por clock (R1/R2), así que será el `scan_mapper` el que
+decida entre leer a 2× del clock de píxel o duplicar el puerto.
+
 ## Temporización: bcm_sequencer + hub75_serializer
 
 El secuenciador es el maestro del frame BCM y gobierna los ocho serializadores
@@ -65,8 +81,8 @@ valida el mapeo de píxeles: eso es del `scan_mapper`, que necesita el panel.
 
 ## Pendientes
 
-Sin placa: `bitplane_store` (BRAM de bitplanes, doble puerto) y el `.lpf`
-completo de los 56 pines HUB75 desde el pinout de `docs/12 §2`.
+Sin placa: el `.lpf` completo de los 56 pines HUB75 desde el pinout de
+`docs/12 §2` y la integración de los cuatro bloques en un top de prueba.
 
 Con placa: el Paso 0 del bring-up y el `scan_mapper` (Paso 2, la incógnita
 principal). La cadena completa está en
