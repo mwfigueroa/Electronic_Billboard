@@ -9,3 +9,6 @@ hardware/fotos/*.HEIC
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs de herramientas (MCP, depuradores)
+logs/
