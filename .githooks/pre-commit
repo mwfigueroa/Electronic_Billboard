@@ -1,0 +1,22 @@
+#!/bin/sh
+# Pre-commit: corre la suite del simulador si el commit toca simulator/.
+# Es la red de seguridad contra commits con tests que fijan valores viejos.
+#
+# Activar en el clon:   git config core.hooksPath .githooks
+# (o `make -C simulator hooks`)
+#
+# Sin venv los tests no pueden correr: se aborta con instrucciones. Para un
+# commit que no toca código (p. ej. solo docs bajo simulator/), usar --no-verify.
+
+if ! git diff --cached --name-only | grep -q '^simulator/'; then
+    exit 0
+fi
+
+if [ ! -x simulator/.venv/bin/python ]; then
+    echo "pre-commit: falta simulator/.venv; correr 'make -C simulator venv'" >&2
+    echo "            (o commitear con --no-verify si no toca código)" >&2
+    exit 1
+fi
+
+echo "pre-commit: tests del simulador"
+make -C simulator test
