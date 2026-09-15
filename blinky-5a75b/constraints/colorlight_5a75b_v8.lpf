@@ -1,0 +1,23 @@
+# Colorlight 5A-75B revision 8.0 — LFE5U-25F-6BG256C (CABGA256, speed 6)
+#
+# Fuente: chubby75 hardware_V8.0.md, via ../docs/12_referencias_tecnicas.md
+#
+# ATENCION: el pin del LED de usuario esta en disputa entre fuentes (T6 segun
+# chubby75, P11 segun weigu). Este diseño maneja los dos a proposito, para
+# resolverlo sobre la placa. No se restringe ningun pin de los HUB75.
+
+# --- Reloj: 25 MHz generados por el PHY U13 --------------------------------
+LOCATE COMP "clk25" SITE "P6";
+IOBUF  PORT "clk25" IO_TYPE=LVCMOS33;
+FREQUENCY PORT "clk25" 25 MHz;
+
+# --- Candidatos a LED de usuario -------------------------------------------
+LOCATE COMP "led_t6"  SITE "T6";
+IOBUF  PORT "led_t6"  IO_TYPE=LVCMOS33 DRIVE=8;
+
+LOCATE COMP "led_p11" SITE "P11";
+IOBUF  PORT "led_p11" IO_TYPE=LVCMOS33 DRIVE=8;
+
+# --- Boton de usuario: activo bajo -----------------------------------------
+LOCATE COMP "btn_n"   SITE "R7";
+IOBUF  PORT "btn_n"   IO_TYPE=LVCMOS33 PULLMODE=UP;
