@@ -1,0 +1,25 @@
+# Normaliza los finales de línea a LF, tanto en el repositorio como en el
+# directorio de trabajo.
+#
+# Motivo: el proyecto vive en /mnt/p (drvfs), así que se edita indistintamente
+# desde Windows y desde WSL. Sin esto, cualquier editor de Windows reescribe
+# los .md con CRLF y git los reporta como modificados de punta a punta — pasó
+# con los 15 documentos de docs/ antes del commit 37acdd6.
+* text=auto eol=lf
+
+# Binarios: git no debe tocarlos ni intentar diffearlos.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.heic  binary
+*.pdf   binary
+*.zip   binary
+*.rar   binary
+*.step  binary
+*.stp   binary
+
+# Artefactos de FPGA.
+*.bit   binary
+*.bin   binary
+*.svf   binary
+*.vcd   binary
