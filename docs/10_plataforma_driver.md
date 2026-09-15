@@ -121,7 +121,7 @@ Es la arquitectura de la opción C, ya construida y documentada:
 | Framework | Soporte de primera clase en **LiteX** (`colorlight_5a_75b`) |
 | Documentación | [chubby75](https://github.com/q3k/chubby75) — esquemáticos, pinouts y ejemplos |
 
-Refresco con 8 buses (2.048 clocks por bitplane):
+Refresco con 8 buses (2.048 clocks de datos por bitplane):
 
 | Profundidad | 12,5 MHz | 16 MHz | 25 MHz |
 |---|---:|---:|---:|
@@ -129,15 +129,15 @@ Refresco con 8 buses (2.048 clocks por bitplane):
 | 5 bits/color | **197 Hz** | 252 Hz | 394 Hz |
 | 6 bits/color | 97 Hz | 124 Hz | 194 Hz |
 
-Incluso a un clock conservador de 12,5 MHz se obtienen 5 bits/color a ~197 Hz, por encima del criterio de aceptación. Es otra categoría respecto de los 130 Hz a 4 bits de la HD-WF4.
+Incluso a un clock conservador de 12,5 MHz se obtienen 5 bits/color a ~194 Hz con el secuenciador implementado (193,9 Hz medidos en simulación; el blanking suma 4 clocks por paso, ver [`11`](11_arquitectura_colorlight_5a75b.md)), por encima del criterio de aceptación. Es otra categoría respecto de los 130 Hz a 4 bits de la HD-WF4.
 
 ## Comparación
 
 | | HD-WF4 | ESP32-P4 propio | EP4CE6 | **5A-75B** |
 |---|---|---|---|---|
 | Buses RGB simultáneos | 2 (bancos) | 4 | 8 | **8** |
-| Clocks/bitplane | 8.192 | 4.096 | 2.048 | **2.048** |
-| Mejor punto realista | 4 bit @ 130 Hz | 5 bit @ 197 Hz | — | **5 bit @ 394 Hz** |
+| Clocks/bitplane (datos) | 8.192 | 4.096 | 2.048 | **2.048** |
+| Mejor punto realista | 4 bit @ 130 Hz | 5 bit @ 197 Hz | — | **5 bit @ 388 Hz** |
 | Memoria de frame | No | PSRAM | **Insuficiente** | BRAM + 4–8 MB SDRAM |
 | Etapa de salida 5 V | Incluida | **A diseñar** | **A diseñar** | Incluida |
 | Conectores HUB75 | 4 | **A diseñar** | **A diseñar** | 8 |

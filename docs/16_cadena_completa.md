@@ -24,7 +24,7 @@ flowchart TB
         DRAM["LiteDRAM → SDRAM M12L64322A<br/>8 MB · framebuffer RGB888"]
         Conv["conversión a bitplanes<br/>ubicación según contrato de wire"]
         Store["bitplane_store — BRAM 60 KB<br/>5 bits por color"]
-        Seq["bcm_sequencer + scan_mapper<br/>lockstep · 2048 clocks por bitplane"]
+        Seq["bcm_sequencer + scan_mapper<br/>lockstep · 2048 clocks de datos por bitplane"]
         Ser["8 × hub75_serializer"]
         Buf["12 × 74HC245T<br/>3,3 V → 5 V"]
     end
@@ -90,7 +90,7 @@ Lo ya verificado en [`../simulator/`](../simulator/README.md) es lo que hay que 
 |---|---|---|
 | `quantize` | `rgb_to_bitplane` (PC o FPGA, según contrato de wire) | `duty = (v/255)^γ`, γ 2.2 |
 | `bitplanes.py` (layout `[bit][canal][y][x]`) | `bitplane_store` (BRAM) | 5 bits/color · 60 KB = 48 % de BRAM |
-| `timing.refresh_hz` | `bcm_sequencer` | 2048 clocks/bitplane → 197 Hz @ 12,5 MHz |
+| `timing.refresh_hz` | `bcm_sequencer` | 2080 clocks/bitplane (2048 de datos + blanking) → 193,9 Hz @ 12,5 MHz, medido |
 | máscara LED (gap 0.65, circular) | máscara física del módulo P5 | LED ≈ ⅓ del paso · pitch 5 mm |
 | `viewing.py` | instalación | 5 m ↔ 416×208 px (monitor 32" 1080p a 60 cm) |
 

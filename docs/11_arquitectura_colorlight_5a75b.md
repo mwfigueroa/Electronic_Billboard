@@ -76,7 +76,7 @@ Cambia respecto del diseño original con HD-WF4:
 | Cadenas | 4 de 4 módulos | **8 de 2 módulos** |
 | Puertos usados | 4 de 4 | 8 de 8 |
 | Cables flat | 16 | 16 (sin cambio) |
-| Clocks por bitplane | 8.192 | **2.048** |
+| Clocks por bitplane (datos) | 8.192 | **2.048** |
 
 Cada fila física del cartel (4 módulos) se divide en **dos cadenas de 2 módulos**, alimentadas por dos puertos contiguos. El cableado de potencia 5 V no cambia: sigue siendo una fuente LRS-350-5 por fila con dos inyecciones de 12 AWG. Ver [`03_electrico.md`](03_electrico.md).
 
@@ -84,12 +84,14 @@ Cada fila física del cartel (4 módulos) se divide en **dos cadenas de 2 módul
 
 Los 1.008 Kbit de BRAM equivalen a **126 KB**. Un frame de 256 × 128 px ocupa:
 
-| Profundidad | bits/px | Frame | % de BRAM | Doble buffer |
-|---|---:|---:|---:|---|
-| 4 bits/color | 12 | 48 KB | 38 % | 76 % — entra |
-| **5 bits/color** | 15 | **60 KB** | **48 %** | 95 % — demasiado justo |
-| 6 bits/color | 18 | 72 KB | 57 % | no entra |
-| 8 bits/color | 24 | 96 KB | 76 % | no entra |
+| Profundidad | bits/px | Frame | BRAM neta | DP16KD (medido) | Doble buffer |
+|---|---:|---:|---:|---:|---|
+| 4 bits/color | 12 | 48 KB | 38 % | 24/56 = 43 % | 48 bloques — entra |
+| **5 bits/color** | 15 | **60 KB** | **48 %** | **30/56 = 54 %** | 60 bloques — **no entra** |
+| 6 bits/color | 18 | 72 KB | 57 % | 32/56 = 57 % | no entra |
+| 8 bits/color | 24 | 96 KB | 76 % | 48/56 = 86 % | no entra |
+
+La columna "neta" es la proporción de bits y sirve de cota; la **medida** sale de sintetizar [`driver-5a75b/bitplane_store`](../driver-5a75b/README.md) en el ECP5-25 y es la que manda, porque el primitivo DP16KD es de 18 bits de ancho: 4 y 5 bits por color se redondean al mismo ancho (12 y 15 bits no llenan los 18), 6 bits lo llenan exacto (por eso coincide con la neta) y 8 bits desperdicia un tercio de cada palabra de 36. Con 5 bits quedan 26 bloques libres: alcanza para el contenido, **no** para un segundo framebuffer.
 
 **Diseño adoptado**: los bitplanes viven en BRAM (acceso determinista, sin latencia de SDRAM en el camino crítico del refresco) y los frames RGB más el contenido viven en la SDRAM de 8 MB. El conversor RGB → bitplanes corre solo cuando cambia el contenido, no en cada refresco.
 
@@ -97,17 +99,17 @@ Esto evita el problema que descartó al EP4CE6: el refresco lee de memoria local
 
 ## Punto de operación
 
-Con 8 buses, 2.048 clocks por bitplane:
+Con 8 buses, 2.048 clocks de datos por bitplane. El secuenciador implementado ([`driver-5a75b/bcm_sequencer`](../driver-5a75b/README.md)) agrega 4 clocks de blanking por paso de dirección —necesarios para latchear y asentar la fila con `OE` en bajo—, así que el frame real usa 2.080 clocks por bitplane:
 
 | Profundidad | 12,5 MHz | 16 MHz | 25 MHz |
 |---|---:|---:|---:|
-| 4 bits/color | 407 Hz | 521 Hz | 814 Hz |
-| **5 bits/color** | **197 Hz** | **252 Hz** | 394 Hz |
-| 6 bits/color | 97 Hz | 124 Hz | 194 Hz |
+| 4 bits/color | 401 Hz | 513 Hz | 801 Hz |
+| **5 bits/color** | **194 Hz** | **248 Hz** | 388 Hz |
+| 6 bits/color | 95 Hz | 122 Hz | 191 Hz |
 
-**Objetivo inicial: 5 bits/color a 12,5 MHz = ~197 Hz.** Es conservador en clock, cumple el criterio de aceptación y deja margen amplio hacia arriba. El clock de panel se sube a 16 o 25 MHz solo después de verificar con analizador lógico que no hay ghosting ni pérdida de integridad de señal en los cables flat.
+**Objetivo inicial: 5 bits/color a 12,5 MHz = 194 Hz** (193,9 Hz medidos en simulación). Cumple el criterio de ≥ 192 Hz con ~1 % de margen; el margen real está en el clock: a 16 MHz sube a 248 Hz. El clock de panel se sube a 16 o 25 MHz solo después de verificar con analizador lógico que no hay ghosting ni pérdida de integridad de señal en los cables flat.
 
-Para cartelería exterior, 5 bits por color (32.768 colores) es suficiente. Subir a 6 bits sigue siendo viable a 25 MHz si el contenido lo justifica.
+Para cartelería exterior, 5 bits por color (32.768 colores) es suficiente. Subir a 6 bits queda al borde del criterio a 25 MHz (191 Hz con el blanking actual; con `BLANK_CLOCKS=2` llegaría a ~192 Hz), así que si el contenido lo justifica conviene validarlo en banco antes de fijarlo.
 
 ## Bloques HDL
 

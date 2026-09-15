@@ -136,9 +136,11 @@ gris medio aparece como ~130, igual que en el panel; gamma 1.0 → como ~189, el
 1/8 del panel es específico del hardware y vive en `scan_mapper`
 ([`docs/11`](../docs/11_arquitectura_colorlight_5a75b.md)); acá no se inventa.
 
-**Refresco.** `refresh_hz = f_clock / (2048 × (2^depth − 1))`, el modelo de
-[`docs/11`](../docs/11_arquitectura_colorlight_5a75b.md). Con 12,5 MHz:
-4 bits → 407 Hz, 5 bits → 197 Hz, 6 bits → 97 Hz.
+**Refresco.** `refresh_hz = f_clock / (2080 × (2^depth − 1))`, el modelo de
+[`docs/11`](../docs/11_arquitectura_colorlight_5a75b.md): 2048 clocks de datos
+por bitplane más 4 de blanking por cada uno de los 8 pasos de dirección, como
+implementa `driver-5a75b/bcm_sequencer`. Con 12,5 MHz: 4 bits → 401 Hz,
+5 bits → 194 Hz, 6 bits → 95 Hz.
 
 ## Emular la distancia real
 

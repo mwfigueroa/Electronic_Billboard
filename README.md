@@ -51,7 +51,7 @@ El proyecto mantiene dos rutas deliberadamente separadas. La de producción no d
 | Hardware | Huidu HD-WF4 | **Colorlight 5A-75B** (FPGA ECP5-25) |
 | Software | HD2020 / HDSign | HDL propio + LiteX, toolchain abierto |
 | Topología | 4 cadenas de 4 módulos | 8 cadenas de 2 módulos |
-| Refresco | Según firmware Huidu | 5 bits/color a ~197 Hz (objetivo inicial) |
+| Refresco | Según firmware Huidu | 5 bits/color a ~194 Hz (193,9 medidos en simulación) |
 | Estado | Ruta de puesta en marcha | En diseño |
 
 El cableado de potencia 5 V es idéntico en ambas: una fuente por fila con dos inyecciones. Solo cambia el reparto de las cadenas de datos. La elección de plataforma y los números que la sustentan están en [`docs/10_plataforma_driver.md`](docs/10_plataforma_driver.md).
