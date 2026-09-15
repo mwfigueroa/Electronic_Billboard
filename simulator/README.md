@@ -30,9 +30,10 @@ make view        # visor animado (requiere display)
 make vectors     # regenera vectors/ para los testbenches
 ```
 
-`make hooks` deja activo el pre-commit de `.githooks/`: corre la suite
-automáticamente cuando el commit toca `simulator/`. Sin venv aborta con
-instrucciones (o `--no-verify` si el cambio no toca código).
+`make hooks` deja activo el pre-commit de `.githooks/`: corre la suite del
+simulador cuando el commit toca `simulator/` y los testbenches HDL cuando toca
+`driver-5a75b/`. Sin venv aborta con instrucciones (o `--no-verify` si el
+cambio no toca código).
 
 Los vectores incluyen los 15 planos esperados, el frame de entrada
 (`frame_rgb888.mem`) y la LUT de gamma (`gamma_lut_*.mem`) que consume el

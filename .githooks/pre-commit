@@ -1,22 +1,26 @@
 #!/bin/sh
-# Pre-commit: corre la suite del simulador si el commit toca simulator/.
-# Es la red de seguridad contra commits con tests que fijan valores viejos.
+# Pre-commit: corre los tests que correspondan a lo que toca el commit.
+#   simulator/     -> pytest del simulador (necesita .venv)
+#   driver-5a75b/  -> testbenches HDL con iverilog y vectores dorados
 #
 # Activar en el clon:   git config core.hooksPath .githooks
 # (o `make -C simulator hooks`)
 #
-# Sin venv los tests no pueden correr: se aborta con instrucciones. Para un
-# commit que no toca código (p. ej. solo docs bajo simulator/), usar --no-verify.
+# Para un commit que no toca código (p. ej. solo docs), usar --no-verify.
 
-if ! git diff --cached --name-only | grep -q '^simulator/'; then
-    exit 0
+staged=$(git diff --cached --name-only)
+
+if echo "$staged" | grep -q '^simulator/'; then
+    if [ ! -x simulator/.venv/bin/python ]; then
+        echo "pre-commit: falta simulator/.venv; correr 'make -C simulator venv'" >&2
+        echo "            (o commitear con --no-verify si no toca código)" >&2
+        exit 1
+    fi
+    echo "pre-commit: tests del simulador"
+    make -C simulator test || exit 1
 fi
 
-if [ ! -x simulator/.venv/bin/python ]; then
-    echo "pre-commit: falta simulator/.venv; correr 'make -C simulator venv'" >&2
-    echo "            (o commitear con --no-verify si no toca código)" >&2
-    exit 1
+if echo "$staged" | grep -q '^driver-5a75b/'; then
+    echo "pre-commit: testbenches del driver HDL"
+    make -C driver-5a75b sim || exit 1
 fi
-
-echo "pre-commit: tests del simulador"
-make -C simulator test
