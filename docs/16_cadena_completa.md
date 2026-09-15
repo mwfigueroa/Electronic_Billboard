@@ -22,7 +22,7 @@ flowchart TB
         SoC["LiteX SoC · VexRiscv<br/>playlist · horarios · NTP"]
         Flash["SPI flash 25Q32JVSIQ<br/>4 MB"]
         DRAM["LiteDRAM → SDRAM M12L64322A<br/>8 MB · framebuffer RGB888"]
-        Conv["rgb_to_bitplane<br/>gamma 2.2"]
+        Conv["conversión a bitplanes<br/>ubicación según contrato de wire"]
         Store["bitplane_store — BRAM 60 KB<br/>5 bits por color"]
         Seq["bcm_sequencer + scan_mapper<br/>lockstep · 2048 clocks por bitplane"]
         Ser["8 × hub75_serializer"]
@@ -34,18 +34,18 @@ flowchart TB
     PC -->|"contrato de wire: RGB888 o bitplanes (abierto)"| AP
     AP -->|"1000BASE-T"| PHY
     PHY -->|"RGMII"| MAC
-    MAC -->|"AXI"| SoC
-    SoC -->|"AXI"| DRAM
+    MAC -->|"Wishbone"| SoC
+    SoC -->|"Wishbone"| DRAM
     Flash -. "bitstream + contenido" .-> SoC
     DRAM -->|"frame RGB888 (solo al cambiar contenido)"| Conv
     Conv -->|"bitplanes (bit · canal · y · x)"| Store
     Store -->|"dato serie"| Seq
-    Seq -->|"A–E · CLK · LAT · OE"| Ser
+    Seq -->|"A/B/C (D/E sin uso) · CLK · LAT · OE"| Ser
     Ser -->|"R1 G1 B1 R2 G2 B2 por puerto (×8)"| Buf
     Buf -->|"HUB75E · 5 V"| Panel
 ```
 
-Cada fila física de 4 módulos se reparte en dos cadenas de 2: los 8 puertos se usan todos y `A`–`E`, `CLK`, `LAT` y `OE` van compartidas (lockstep). Detalle en [`11`](11_arquitectura_colorlight_5a75b.md).
+Cada fila física de 4 módulos se reparte en dos cadenas de 2: los 8 puertos se usan todos y `A`–`E`, `CLK`, `LAT` y `OE` van compartidas (lockstep). Solo `A`/`B`/`C` llevan información —el scan 1/8 necesita 2³ = 8 pasos—; `D` y `E` quedan disponibles de la placa pero sin uso. Detalle en [`11`](11_arquitectura_colorlight_5a75b.md).
 
 ## Potencia
 
@@ -71,11 +71,11 @@ flowchart LR
 |---|---|---|
 | `1000BASE-T` | PC/AP ↔ RTL8211FD | Ethernet 1 Gb, par trenzado Cat5e |
 | `RGMII` | RTL8211FD ↔ FPGA | TXD/RXD[3:0] + TX_CTL/RX_CTL + clocks |
-| `AXI` | interno LiteX | MAC · SoC · LiteDRAM |
+| `Wishbone` | interno LiteX | MAC · SoC · LiteDRAM (el bus por defecto de litex-boards; AXI existe como adaptador) |
 | `frame RGB888` | SDRAM → conversor | 256×128; se mueve solo al cambiar contenido (~12 KB/s promedio) |
 | `bitplanes[bit][canal][y][x]` | BRAM → secuenciador | 5 bits/color, 60 KB, **pre-mapeo de scan** |
 | `R1 G1 B1 R2 G2 B2` | FPGA → panel, por puerto | 6 por puerto; ×8 = 48 |
-| `A B C D E` | compartidas por los 8 puertos | dirección de fila, scan 1/8 |
+| `A/B/C` · `D/E` | compartidas por los 8 puertos | `A`/`B`/`C`: paso de dirección (scan 1/8) · `D`/`E`: sin uso, a nivel bajo |
 | `CLK` · `LAT/STB` · `OE` | compartidas por los 8 puertos | lockstep obligatorio |
 | `+5V0` | fuentes → filas | una fuente por fila, 2 inyecciones 12 AWG |
 | `0V` | retorno común | punto estrella; referencia GND de datos |
@@ -88,7 +88,7 @@ Lo ya verificado en [`../simulator/`](../simulator/README.md) es lo que hay que 
 
 | Simulador | Bloque de hardware | Número verificado |
 |---|---|---|
-| `quantize` | `rgb_to_bitplane` | `duty = (v/255)^γ`, γ 2.2 |
+| `quantize` | `rgb_to_bitplane` (PC o FPGA, según contrato de wire) | `duty = (v/255)^γ`, γ 2.2 |
 | `bitplanes.py` (layout `[bit][canal][y][x]`) | `bitplane_store` (BRAM) | 5 bits/color · 60 KB = 48 % de BRAM |
 | `timing.refresh_hz` | `bcm_sequencer` | 2048 clocks/bitplane → 197 Hz @ 12,5 MHz |
 | máscara LED (gap 0.65, circular) | máscara física del módulo P5 | LED ≈ ⅓ del paso · pitch 5 mm |
@@ -96,7 +96,7 @@ Lo ya verificado en [`../simulator/`](../simulator/README.md) es lo que hay que 
 
 ## Condicionantes abiertos
 
-- **Contrato de wire**: ¿la PC manda RGB888 o bitplanes ya serializados? Cambia dónde vive la conversión. [`14`](14_software_contenido.md).
+- **Contrato de wire**: ¿la PC manda RGB888 o bitplanes ya serializados? Cambia dónde vive la conversión (gamma, cuantización y armado de bitplanes). [`14`](14_software_contenido.md).
 - **Familia del IC driver del módulo**: si es S-PWM interno (MBI5153/FM6353), el modelo BCM no aplica y el protocolo es otro. [`08`](08_hub75e_y_panel_p5.md).
 - **Mapeo de scan 1/8**: la incógnita principal del driver; se resuelve en el Paso 2 del bring-up. [`11`](11_arquitectura_colorlight_5a75b.md).
 - **Revisión de placa**: comprar 8.0 u 8.2; otra revisión implica otro pinout y otro archivo de plataforma LiteX.

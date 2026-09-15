@@ -66,6 +66,7 @@ def render(
         img.save(path)
         written.append(path)
         print(f"[{index:02d}] {slide.type:<5} {slide.duration:5.1f}s → {path}")
+    timeline.close()
     return written, depth, gamma
 
 

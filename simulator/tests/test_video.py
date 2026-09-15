@@ -39,6 +39,7 @@ def test_frames_at_canvas_size(sample_video):
     later = source.frame_at(0.5)
     assert first.shape == (128, 256, 3)
     assert first.dtype == np.uint8
+    assert first.flags.writeable  # una capa de composición debe poder escribir
     assert not np.array_equal(first, later)
     source.close()
 
@@ -75,3 +76,5 @@ def test_timeline_plays_video(sample_video):
     later = timeline.frame_at(0, 0.5)
     assert first.shape == (128, 256, 3)
     assert not np.array_equal(first, later)
+    assert timeline.close() == 1
+    assert timeline.close() == 0

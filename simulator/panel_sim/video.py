@@ -89,7 +89,7 @@ class VideoSource:
         if not raw or len(raw) < width * height * 3:
             self._eof = True
             return None
-        frame = np.frombuffer(raw, dtype=np.uint8).reshape(height, width, 3)
+        frame = np.frombuffer(raw, dtype=np.uint8).reshape(height, width, 3).copy()
         self._current = self._frames_read
         self._frames_read += 1
         return frame

@@ -23,17 +23,22 @@ Es software puro. Responde *"cómo se vería esto en la pantalla"* y nada más:
 ```bash
 cd simulator
 make test        # pytest
+make hooks       # activa el pre-commit del repo (tests si el commit toca simulator/)
 make render      # out/00_text.png, out/01_text.png, … con píxeles visibles
 make view        # visor animado (requiere display)
 make vectors     # regenera vectors/ para los testbenches
 ```
+
+`make hooks` deja activo el pre-commit de `.githooks/`: corre la suite
+automáticamente cuando el commit toca `simulator/`. Sin venv aborta con
+instrucciones (o `--no-verify` si el cambio no toca código).
 
 O directamente:
 
 ```bash
 .venv/bin/python -m panel_sim.render examples/playlist.json -o out --scale 4
 .venv/bin/python -m panel_sim.render examples/playlist.json --depth 4   # comparar 4 bits
-.venv/bin/python -m panel_sim.viewer examples/playlist.json --scale 3
+.venv/bin/python -m panel_sim.viewer examples/playlist.json --scale 5
 .venv/bin/python -m panel_sim.viewer examples/playlist.json --start 3  # arrancar en la escena
 .venv/bin/python -m panel_sim.vectors -o vectors
 ```
@@ -45,15 +50,17 @@ equivalente y las teclas. Teclas:
 `SPACE` pausa · `←/→` slide · `4/5/6` profundidad · `G` gamma 2.2 ↔ 1.0 ·
 `+/-` distancia simulada · `R` reinicia · `S` captura PNG · `Q`/`ESC` salir.
 
-La máscara se dibuja cuando cada píxel de panel ocupa ≥ 3 px de pantalla
-(escala 3 o más); `--gap-frac` ajusta su fracción del paso (0.65 por defecto,
-medido sobre la foto del módulo P5: el LED ocupa ~⅓ del paso, ~12 % del área;
-`0` la desactiva) y `--led-shape round` (por defecto) dibuja el LED circular
-con borde suavizado, como la lente del módulo real — `--led-shape square` deja
-los píxeles cuadrados. El LED nunca baja de 2 px: con 1 px el panel se vería
-más apagado que el real. A la distancia de emulación (p. ej. 5 m) el LED real
-es sub-píxel en el monitor: el visor lo avisa y muestra el panel sin máscara,
-que es lo físicamente correcto.
+La máscara se dibuja cuando cada píxel de panel ocupa ≥ 5 px de pantalla
+(escala 5 o más, que es el default): con menos, el LED quedaría de 2 px y la
+superficie encendida casi triplicaría la del módulo real (37 % a celda 3
+contra el ~12 % medido). `--gap-frac` ajusta su fracción del paso (0.65 por
+defecto, medido sobre la foto del módulo P5: el LED ocupa ~⅓ del paso, ~12 %
+del área; `0` la desactiva) y `--led-shape round` (por defecto) dibuja el LED
+circular con borde suavizado, como la lente del módulo real — `--led-shape
+square` deja los píxeles cuadrados. El LED nunca baja de 2 px: con 1 px el
+panel se vería más apagado que el real. A la distancia de emulación (p. ej.
+5 m) el LED real es sub-píxel en el monitor: el visor lo avisa y muestra el
+panel sin máscara, que es lo físicamente correcto.
 
 En WSLg el visor fuerza `SDL_VIDEODRIVER=x11` con render por software: SDL se
 cuelga al abrir la ventana sin `/dev/dri`. Si el entorno define esas variables
@@ -94,8 +101,11 @@ cargar (no un render a medias). Cada slide tiene `type` y `duration` (segundos).
 - `video`: `path` (MP4/WebM), `loop` (default `true`) y `fps` de decodificación
   (default 30). Se decodifica con ffmpeg (del sistema o `imageio-ffmpeg`) y se
   ajusta al canvas con letterbox negro. `make video` baja un clip de ejemplo
-  (Sintel © Blender Foundation, CC-BY 3.0, escena de acción) y
+  (Sintel © Blender Foundation, CC-BY 3.0) y
   `make view PLAYLIST=examples/playlist_video.json` lo reproduce en el panel.
+  El clip se eligió por su **paleta oscura**: ~40 % de sus subpíxeles cae bajo
+  sRGB 39, el umbral donde 5 bits apaga (mediana sRGB ≈68) — es el peor caso a
+  propósito, no reemplazar por material más brillante.
 - `clock`: `format` estilo `strftime`; se re-renderiza en cada frame con la
   hora local (o con `--time` en el render).
 - `color`: `color` plano.

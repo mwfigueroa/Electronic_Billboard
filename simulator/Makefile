@@ -8,11 +8,11 @@ PIP := .venv/bin/pip
 EXAMPLE := examples/playlist.json
 PLAYLIST ?= $(EXAMPLE)
 OUT     := out
-ARGS    ?= --scale 3
+ARGS    ?= --scale 5
 VIDEO_URL := https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4
 MEDIA   := media/sintel_10s.mp4
 
-.PHONY: all venv test render view vectors video clean distclean help
+.PHONY: all venv test render view vectors video hooks clean distclean help
 
 all: test render
 
@@ -28,6 +28,11 @@ venv: .venv/pyvenv.cfg
 # --- Verificacion -----------------------------------------------------------
 test: venv
 	$(PY) -m pytest -q
+
+# Activa el pre-commit del repo (corre los tests si cambia simulator/)
+hooks:
+	git -C .. config core.hooksPath .githooks
+	@echo "pre-commit activado: corre la suite cuando el commit toca simulator/"
 
 # --- PNG por slide (pixeles cuadrados visibles) -----------------------------
 render: venv
@@ -58,6 +63,7 @@ distclean: clean
 help:
 	@echo "make          - tests + render de ejemplo"
 	@echo "make test     - corre pytest"
+	@echo "make hooks    - activa el pre-commit del repo (tests antes de commitear)"
 	@echo "make render   - PNG de cada slide en $(OUT)/"
 	@echo "make view     - visor animado; teclas: SPACE pausa,"
 	@echo "                ←→ slide, 4/5/6 profundidad, G gamma, +/- distancia, S captura, Q salir"

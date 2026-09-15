@@ -102,6 +102,14 @@ class Timeline:
             valign = getattr(slide, "valign", "middle")
             paste_aligned(canvas, img, align, valign)
 
+    def close(self) -> int:
+        """Termina los decodificadores de video abiertos. Devuelve cuántos."""
+        count = len(self._videos)
+        for source in self._videos.values():
+            source.close()
+        self._videos.clear()
+        return count
+
     def _load(self, path: Path) -> Image.Image:
         if path not in self._images:
             self._images[path] = Image.open(path).convert("RGBA")

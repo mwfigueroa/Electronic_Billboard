@@ -32,13 +32,12 @@ import os
 import socket
 import sys
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
 
-from .canvas import scale_with_grid
 from .playlist import load
 from .quantize import quantize, to_display
 from .timeline import Timeline
@@ -105,11 +104,34 @@ def _startup_guard(ready: threading.Event) -> None:
         os._exit(2)
 
 
-def save_screenshot(display_frame, out_dir: Path, scale: int) -> Path:
+def render_surface(frame, panel_size: tuple[int, int], gap_mask, gap_cell: int):
+    """Superficie de pantalla del panel: escalado + máscara de LED aplicada.
+
+    La usan el blit del visor y la captura de la tecla S, para que lo que se
+    guarda sea exactamente lo que se ve.
+    """
+    import pygame
+
+    surface = pygame.image.frombuffer(
+        frame.tobytes(), (frame.shape[1], frame.shape[0]), "RGB"
+    )
+    if gap_mask is None:
+        return pygame.transform.scale(surface, panel_size)
+    upscaled = pygame.transform.scale(
+        surface, (frame.shape[1] * gap_cell, frame.shape[0] * gap_cell)
+    )
+    upscaled.blit(gap_mask, (0, 0), special_flags=pygame.BLEND_MULT)
+    if upscaled.get_size() != panel_size:
+        upscaled = pygame.transform.scale(upscaled, panel_size)
+    return upscaled
+
+
+def save_screenshot(surface, out_dir: Path) -> Path:
+    import pygame
+
     out_dir.mkdir(parents=True, exist_ok=True)
-    img = scale_with_grid(Image.fromarray(display_frame), max(scale, 1))
     path = out_dir / f"viewer_{datetime.now():%Y%m%d_%H%M%S}.png"
-    img.save(path)
+    pygame.image.save(surface, str(path))
     return path
 
 
@@ -152,20 +174,40 @@ def pixel_dot_array(
 def _gap_geometry(panel_width: int, panel_px: int, gap_frac: float) -> tuple[int, int]:
     """(cell, gap) en px de pantalla; gap 0 = sin máscara representable.
 
-    El LED nunca baja de 2 px: con 1 px el panel se ve más apagado que el real
-    (la máscara se come la mayor parte de la luz).
+    Por debajo de 5 px de celda la máscara no puede representar la proporción
+    real (el LED quedaría con 1-2 px y demasiada área encendida: 37 % a celda
+    3 contra el ~12 % del módulo). Tampoco baja el LED de 2 px: con 1 px el
+    panel se ve más apagado que el real.
     """
     cell = panel_width // panel_px
-    if gap_frac <= 0 or cell < 3:
+    if gap_frac <= 0 or cell < 5:
         return cell, 0
     gap = max(1, min(round(cell * gap_frac), cell - 2))
     return cell, gap
 
 
+def layout_panel(
+    window_size: tuple[int, int], panel_w_px: int, panel_h_px: int, gap_frac: float
+) -> tuple[tuple[int, int], int, int]:
+    """Panel 2:1 centrado en la ventana, arriba del HUD.
+
+    Con máscara activa el panel se ajusta a celdas enteras (múltiplos del
+    canvas) para que el gap no se reescale y quede desparejo.
+    """
+    w, h = window_size
+    area_h = max(1, h - HUD_HEIGHT)
+    factor = min(w / panel_w_px, area_h / panel_h_px)
+    panel = (max(2, round(panel_w_px * factor)), max(2, round(panel_h_px * factor)))
+    cell, gap = _gap_geometry(panel[0], panel_w_px, gap_frac)
+    if gap:
+        panel = (cell * panel_w_px, cell * panel_h_px)
+    return panel, (w - panel[0]) // 2, max(0, (area_h - panel[1]) // 2)
+
+
 def run(
     playlist,
     *,
-    scale: int = 3,
+    scale: int = 5,
     depth: int | None = None,
     gamma: float | None = None,
     fps: int = 30,
@@ -228,12 +270,7 @@ def run(
         return pygame.surfarray.make_surface(rgb.transpose(1, 0, 2)), cell, gap
 
     def layout(window_size: tuple[int, int]) -> tuple[tuple[int, int], int, int]:
-        """Panel 2:1 centrado en la ventana, con el HUD abajo."""
-        w, h = window_size
-        area_h = max(1, h - HUD_HEIGHT)
-        factor = min(w / width, area_h / height)
-        panel = (max(2, round(width * factor)), max(2, round(height * factor)))
-        return panel, (w - panel[0]) // 2, max(0, (area_h - panel[1]) // 2)
+        return layout_panel(window_size, width, height, gap_frac)
 
     def build_hud(width_px: int):
         bg = pygame.Surface((width_px, HUD_HEIGHT), pygame.SRCALPHA)
@@ -242,6 +279,7 @@ def run(
 
     panel_size, panel_x, panel_y = layout(screen.get_size())
     layout_state = screen.get_size()
+    layout_report_at: float | None = None
     hud_font = make_hud_font(screen.get_width())
     hud_bg = build_hud(screen.get_width())
     gap_mask, gap_cell, gap_px = gap_for(panel_size[0])
@@ -266,7 +304,7 @@ def run(
     else:
         print(
             f"máscara de píxel: no representable a {panel_size[0] / width:.1f} px/píxel "
-            "(sub-píxel; usar --scale 3 o más para verla)"
+            "(hace falta celda ≥ 5 px, subir --scale)"
         )
     if distance_m is None:
         print("(fijar la distancia del proyecto con --panel-distance 5, o +/- en vivo)")
@@ -316,8 +354,8 @@ def run(
                     local_t = 0.0
                 elif event.key == pygame.K_s:
                     if last_frame is not None:
-                        current_scale = max(1, round(panel_size[0] / width))
-                        print(f"captura: {save_screenshot(last_frame, out_dir, current_scale)}")
+                        capture = render_surface(last_frame, panel_size, gap_mask, gap_cell)
+                        print(f"captura: {save_screenshot(capture, out_dir)}")
 
         if screen.get_size() != layout_state:
             layout_state = screen.get_size()
@@ -325,16 +363,19 @@ def run(
             hud_font = make_hud_font(layout_state[0])
             hud_bg = build_hud(layout_state[0])
             gap_mask, gap_cell, gap_px = gap_for(panel_size[0])
+            layout_report_at = time.monotonic() + 0.5
+        elif layout_report_at is not None and time.monotonic() >= layout_report_at:
             if gap_px:
                 shape = "circular" if round_led else "cuadrado"
                 mask_txt = f"LED {shape} {gap_cell - gap_px} px · gap {gap_px} px"
             else:
-                mask_txt = "sin máscara (sub-píxel)"
+                mask_txt = "sin máscara (celda < 5 px)"
             print(
                 f"ventana {layout_state[0]}×{layout_state[1]} → panel "
                 f"{panel_size[0]}×{panel_size[1]} px · {mask_txt} · "
                 f"~{viewing.equivalent(width, panel_size[0] / width):.1f} m reales"
             )
+            layout_report_at = None
 
         dt = clock.tick(fps) / 1000.0
         if not paused:
@@ -345,17 +386,7 @@ def run(
 
         frame = timeline.frame_at(index, local_t, now=datetime.now())
         last_frame = to_display(quantize(frame, depth, gamma), depth)
-        surface = pygame.image.frombuffer(last_frame.tobytes(), (width, height), "RGB")
-        if gap_mask is not None:
-            upscaled = pygame.transform.scale(surface, (width * gap_cell, height * gap_cell))
-            upscaled.blit(gap_mask, (0, 0), special_flags=pygame.BLEND_MULT)
-            scaled = (
-                upscaled
-                if upscaled.get_size() == panel_size
-                else pygame.transform.scale(upscaled, panel_size)
-            )
-        else:
-            scaled = pygame.transform.scale(surface, panel_size)
+        scaled = render_surface(last_frame, panel_size, gap_mask, gap_cell)
         screen.blit(scaled, (panel_x, panel_y))
 
         current_scale = panel_size[0] / width
@@ -375,6 +406,7 @@ def run(
             running = False
 
     pygame.quit()
+    timeline.close()
     return 0
 
 
@@ -384,7 +416,7 @@ def main(argv: list[str] | None = None) -> int:
         description="Visor animado del simulador de panel.",
     )
     parser.add_argument("playlist", type=Path)
-    parser.add_argument("--scale", type=int, default=3, help="factor de ampliación inicial (modo manual)")
+    parser.add_argument("--scale", type=int, default=5, help="factor de ampliación inicial (modo manual)")
     parser.add_argument("--depth", type=int, default=None, help="bits por color (4, 5, 6)")
     parser.add_argument("--gamma", type=float, default=None, help="exponente de gamma (1 = sin corrección)")
     parser.add_argument("--fps", type=int, default=30, help="frames por segundo de la animación")

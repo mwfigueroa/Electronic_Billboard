@@ -84,6 +84,7 @@ El cableado de potencia 5 V es idéntico en ambas: una fuente por fila con dos i
 │   ├── examples/              Playlist de ejemplo y logo
 │   ├── tests/                 Tests del pipeline (pytest)
 │   └── vectors/               Vectores dorados para los testbenches del HDL
+├── .githooks/                 pre-commit: corre los tests si el commit toca simulator/
 └── hardware/                    (futuro: planos, CAD, fotos)
 ```
 
