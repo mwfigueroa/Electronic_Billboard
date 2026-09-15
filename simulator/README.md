@@ -4,7 +4,8 @@ Referencia de software del pipeline de contenido del cartel
 ([`docs/14_software_contenido.md`](../docs/14_software_contenido.md)):
 playlist declarativa → canvas 256×128 RGB888 → gamma y cuantización a N bits →
 bitplanes. Produce PNG de cada slide y un **visor animado** en tiempo real, y
-emite los **vectores dorados** contra los que se validará el HDL. La cadena de
+emite los **vectores dorados** contra los que se valida el HDL
+([`../driver-5a75b/`](../driver-5a75b/README.md)). La cadena de
 hardware que estos números validan está en
 [`docs/16_cadena_completa.md`](../docs/16_cadena_completa.md).
 
@@ -32,6 +33,10 @@ make vectors     # regenera vectors/ para los testbenches
 `make hooks` deja activo el pre-commit de `.githooks/`: corre la suite
 automáticamente cuando el commit toca `simulator/`. Sin venv aborta con
 instrucciones (o `--no-verify` si el cambio no toca código).
+
+Los vectores incluyen los 15 planos esperados, el frame de entrada
+(`frame_rgb888.mem`) y la LUT de gamma (`gamma_lut_*.mem`) que consume el
+bloque HDL de [`../driver-5a75b/`](../driver-5a75b/README.md).
 
 O directamente:
 

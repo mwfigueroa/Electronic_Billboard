@@ -7,6 +7,15 @@
   "pattern": "R = x\u00b7255/(w\u22121), G = y\u00b7255/(h\u22121), B = 255 si (x+y) es impar, 0 si es par",
   "layout": "planes[bit][canal][y][x]; bit 0 = LSB; x=0 = izquierda del canvas",
   "mem_layout": "una l\u00ednea por y; d\u00edgito hex por cada 4 px; x=0 = bit menos significativo",
+  "frame": {
+    "file": "frame_rgb888.mem",
+    "layout": "un p\u00edxel por l\u00ednea (rrggbb), orden y y luego x"
+  },
+  "gamma_lut": {
+    "file": "gamma_lut_2p2_5b.mem",
+    "layout": "256 niveles, uno por l\u00ednea, \u00edndice = valor sRGB 0..255",
+    "note": "generada con quantize(); el HDL debe devolver el mismo nivel"
+  },
   "files": {
     "b0_r": "bitplane_b0_r.mem",
     "b0_g": "bitplane_b0_g.mem",

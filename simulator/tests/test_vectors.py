@@ -14,9 +14,32 @@ from panel_sim.vectors import write_vectors
 def test_write_vectors(tmp_path):
     width, height, depth = 16, 8, 5
     written = write_vectors(tmp_path, width=width, height=height, depth=depth)
-    assert len(written) == depth * 3 + 2
+    assert len(written) == depth * 3 + 4
     assert (tmp_path / "manifest.json").exists()
     assert (tmp_path / "expected_levels.json").exists()
+    assert (tmp_path / "frame_rgb888.mem").exists()
+    assert (tmp_path / "gamma_lut_2p2_5b.mem").exists()
+
+
+def test_frame_file_matches_pattern(tmp_path):
+    width, height, depth = 16, 8, 5
+    write_vectors(tmp_path, width=width, height=height, depth=depth)
+    lines = (tmp_path / "frame_rgb888.mem").read_text().splitlines()
+    assert len(lines) == width * height
+    frame = canonical_test_frame(width, height)
+    for n, line in enumerate(lines):
+        y, x = divmod(n, width)
+        r, g, b = frame[y, x]
+        assert line == f"{int(r):02x}{int(g):02x}{int(b):02x}"
+
+
+def test_gamma_lut_matches_quantize(tmp_path):
+    write_vectors(tmp_path, depth=5, gamma=2.2)
+    lines = (tmp_path / "gamma_lut_2p2_5b.mem").read_text().splitlines()
+    assert len(lines) == 256
+    ramp = np.arange(256, dtype=np.uint8).reshape(256, 1, 1).repeat(3, axis=2)
+    expected = quantize(ramp, 5, 2.2)[:, 0, 0]
+    assert [int(line, 16) for line in lines] == [int(v) for v in expected]
 
 
 def test_mem_files_match_bitplanes(tmp_path):

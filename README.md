@@ -85,6 +85,7 @@ El cableado de potencia 5 V es idéntico en ambas: una fuente por fila con dos i
 │   ├── tests/                 Tests del pipeline (pytest)
 │   └── vectors/               Vectores dorados para los testbenches del HDL
 ├── .githooks/                 pre-commit: corre los tests si el commit toca simulator/
+├── driver-5a75b/              Bloques HDL del driver propio (docs/11): rgb_to_bitplane + testbench
 └── hardware/                    (futuro: planos, CAD, fotos)
 ```
 
