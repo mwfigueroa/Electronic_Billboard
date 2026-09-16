@@ -96,7 +96,7 @@ Por qué RGB y no bitplanes: la app no debe cambiar cuando se mueve la profundid
 
 ## Qué no hacer todavía
 
-**La UI de autoría.** Es lo más visible y lo más tentador, pero es lo más barato de cambiar y lo último que se necesita. Mientras la playlist sea un archivo declarativo editable a mano, la UI es un lujo. Si aparece, que sea un editor de ese archivo con preview del simulador — nunca una aplicación con su propio modelo de datos paralelo.
+**La UI de autoría.** Es lo más visible y lo más tentador, pero es lo más barato de cambiar y lo último que se necesita. Mientras la playlist sea un archivo declarativo editable a mano, la UI es un lujo. Si aparece, que sea un editor de ese archivo con preview del simulador — nunca una aplicación con su propio modelo de datos paralelo. (Existe un editor mínimo que cumple exactamente eso: `panel_sim/editor.py`, edita el archivo con preview del pipeline del panel.)
 
 **El transporte de red y LiteX.** Entran en el Paso 5 del bring-up, cuando ya haya algo que transportar.
 
