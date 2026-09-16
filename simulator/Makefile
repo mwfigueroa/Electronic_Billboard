@@ -12,7 +12,7 @@ ARGS    ?= --scale 5
 VIDEO_URL := https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4
 MEDIA   := media/sintel_10s.mp4
 
-.PHONY: all venv test render view vectors video app demo hooks clean distclean help
+.PHONY: all venv test render view vectors video app demo editor hooks clean distclean help
 
 all: test render
 
@@ -55,6 +55,11 @@ video: venv
 app: venv
 	$(PY) -m content.app $(PLAYLIST)
 
+# --- Editor de playlist con preview en vivo (herramienta del lado panel) ------
+# Abrir http://127.0.0.1:8090 — al guardar, la app recarga sola
+editor: venv
+	$(PY) -m panel_sim.editor $(PLAYLIST)
+
 # --- Demo mínima del transporte (Pillow crudo; no es la app) ------------------
 demo: venv
 	$(PY) examples/app_ejemplo.py
@@ -81,6 +86,7 @@ help:
 	@echo "make video    - baja el video de ejemplo (CC-BY) a media/"
 	@echo "make app      - publica la playlist como fuente viva (content/app.py)"
 	@echo "make demo     - demo mínima del transporte (Pillow crudo, sin Timeline)"
+	@echo "make editor   - editor de playlist con preview en vivo (http://127.0.0.1:8090)"
 	@echo "make view PLAYLIST=examples/playlist_live.json - consume la fuente viva"
 	@echo "make clean    - borra artefactos de salida"
 	@echo "make distclean- borra tambien el venv"

@@ -30,6 +30,7 @@ cd simulator
 make test        # pytest
 make hooks       # activa el pre-commit del repo (tests si el commit toca simulator/)
 make app         # publica la playlist como fuente viva (MJPEG en 127.0.0.1:8080)
+make editor      # editor web con preview en vivo (http://127.0.0.1:8090)
 make render      # out/00_text.png, out/01_text.png, … con píxeles visibles
 make view        # visor animado (requiere display)
 make vectors     # regenera vectors/ para los testbenches
@@ -175,6 +176,20 @@ dibuja con Pillow crudo a propósito, para mostrar que cualquier lenguaje o
 framework puede publicar el contrato sin conocer el proyecto. No es la app.
 Si el stream se corta, el panel reintenta la conexión cada 2 s.
 
+## Editor de playlist
+
+`make editor` levanta un editor web local (sin dependencias) sobre la
+playlist: lista los slides con sus campos, permite agregar/mover/borrar,
+subir imágenes, previsualizar el **pipeline real del panel** (gamma +
+cuantización) por MJPEG —incluso un slide puntual con el botón `ver`— y
+guardar **validado** (un documento inválido se puede seguir editando, pero no
+se escribe).
+
+El circuito completo queda cerrado sin reiniciar nada: el editor guarda → la
+app ve el mtime y recarga en caliente → el panel virtual lo muestra. El
+preview del editor no dibuja la máscara de LED ni emula distancia: para eso
+está el visor (`make view`).
+
 ## Convenciones
 
 **Gamma.** Hay dos gammas distintas y conviene no mezclarlas:
@@ -245,14 +260,16 @@ panel_sim/           lado panel (empieza en RGB888)
 ├── viewing.py       emulación de distancia (calibración del monitor)
 ├── render.py        CLI: PNG por slide
 ├── viewer.py        CLI: visor pygame animado
+├── editor.py        CLI: editor web con preview (editor.html)
 └── vectors.py       CLI: vectores dorados para testbenches
 ```
 
 ## Pendientes
 
 - Mapeo de scan del panel: es hardware, no simulador.
-- UI de autoría: deliberadamente postergada; mientras tanto la playlist se
-  edita a mano ([`docs/14`](../docs/14_software_contenido.md)).
+- UI de autoría: hay un editor mínimo que cumple lo que pedía
+  [`docs/14`](../docs/14_software_contenido.md) (edita el archivo y
+  previsualiza el pipeline); una UI completa sigue postergada.
 - Supervisión del proceso en producción: la app corre en primer plano y
   `/status` es la señal para vigilarla (el supervisor —systemd, kiosco— queda
   fuera de este repo).

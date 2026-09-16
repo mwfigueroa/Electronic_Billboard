@@ -197,6 +197,11 @@ def load(path: str | Path) -> Playlist:
         raise PlaylistError(f"no existe la playlist: {path}") from None
     except json.JSONDecodeError as exc:
         raise PlaylistError(f"JSON inválido en {path}: {exc}") from exc
+    return parse(raw, path.parent, source=path)
+
+
+def parse(raw: Any, base: Path, source: Path | None = None) -> Playlist:
+    """Valida un objeto ya cargado (el editor lo usa sobre memoria)."""
     if not isinstance(raw, dict):
         raise PlaylistError("la playlist debe ser un objeto JSON")
     _check_keys(raw, {"version", "display", "slides"}, "playlist")
@@ -210,10 +215,15 @@ def load(path: str | Path) -> Playlist:
     if not isinstance(slides_raw, list) or not slides_raw:
         raise PlaylistError("'slides' debe ser una lista no vacía")
     slides = tuple(
-        _parse_slide(item, path.parent, index)
+        _parse_slide(item, base, index)
         for index, item in enumerate(slides_raw)
     )
-    return Playlist(display=display, slides=slides, source=path, version=version)
+    return Playlist(
+        display=display,
+        slides=slides,
+        source=source if source is not None else base / "playlist.json",
+        version=version,
+    )
 
 
 def _check_keys(raw: dict, allowed: set[str], ctx: str) -> None:

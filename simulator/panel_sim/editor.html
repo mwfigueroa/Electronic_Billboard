@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de playlist · cartel</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, sans-serif; background: #101216; color: #e6e8ea;
+         display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 420px); height: 100vh; }
+  #bar { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+         padding: 10px 14px; background: #171a20; border-bottom: 1px solid #23262d; }
+  #bar h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  #bar .path { color: #8b93a0; font-family: ui-monospace, monospace; }
+  .spacer { flex: 1; }
+  .badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+  .badge.ok { background: #1d3527; color: #8fe0b0; }
+  .badge.warn { background: #4a3a17; color: #ffd98a; }
+  .badge.err { background: #4a1f24; color: #ffb3ba; }
+  .muted { color: #8b93a0; }
+  button { background: #262b33; color: #e6e8ea; border: 1px solid #363c47; border-radius: 6px;
+           padding: 5px 9px; cursor: pointer; }
+  button:hover { background: #303743; }
+  button.primary { background: #1d4ed8; border-color: #1d4ed8; }
+  main { overflow: auto; padding: 14px; }
+  aside { border-left: 1px solid #23262d; padding: 14px; overflow: auto; }
+  #preview { width: 100%; image-rendering: pixelated; border: 1px solid #23262d; border-radius: 6px;
+             background: #000; aspect-ratio: 2 / 1; }
+  .card { border: 1px solid #23262d; border-radius: 8px; margin-bottom: 10px; background: #15181d; }
+  .card header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
+  .card header .field { flex-direction: row; align-items: center; gap: 6px; }
+  .card header .field input { width: 74px; }
+  .card .type { font-weight: 600; color: #9fd0ff; }
+  .card .body { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px;
+                padding: 0 10px 10px; }
+  .field { display: flex; flex-direction: column; gap: 3px; }
+  .field label { font-size: 12px; color: #8b93a0; }
+  input, select, textarea { background: #0e1116; color: #e6e8ea; border: 1px solid #2b313b;
+                            border-radius: 6px; padding: 5px 7px; font: inherit; width: 100%; }
+  textarea { min-height: 54px; }
+  #add { display: flex; gap: 8px; margin: 4px 0 28px; }
+  aside .row { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <h1>Editor de playlist</h1>
+  <span class="path" id="path"></span>
+  <span id="error" class="badge err" hidden></span>
+  <span class="spacer"></span>
+  <span id="dirty" class="badge ok">guardado</span>
+  <button id="save" class="primary">Guardar</button>
+</div>
+<main id="slides"></main>
+<aside>
+  <img id="preview" src="/preview.mjpg" alt="preview del panel">
+  <div class="row">
+    <button id="cycle">Ciclo completo</button>
+    <span id="previewing" class="muted"></span>
+  </div>
+  <p class="muted">Preview del pipeline del panel (gamma + cuantización a la profundidad de la
+     playlist). Para la máscara de LED y la distancia, usá el visor (<code>make view</code>).</p>
+</aside>
+<script>
+const FIELDS = {
+  text: [["text", "Texto", "textarea"], ["size", "Tamaño", "number"], ["color", "Color", "color"],
+         ["align", "Alineación", "select", ["center", "left", "right"]],
+         ["valign", "Vertical", "select", ["middle", "top", "bottom"]],
+         ["scroll", "Scroll", "select", ["", "left", "right"]],
+         ["speed_px_s", "Velocidad px/s", "number"]],
+  image: [["path", "Ruta relativa", "text"]],
+  video: [["path", "Ruta", "text"], ["loop", "Loop", "checkbox"], ["fps", "Cuadros/s", "number"]],
+  live: [["url", "URL / device", "text"], ["fps", "Cuadros/s", "number"],
+         ["format", "Formato", "select", ["", "rawvideo", "x11grab", "v4l2", "mjpeg"]],
+         ["size", "Tamaño (rawvideo)", "text"]],
+  clock: [["format", "Formato strftime", "text"], ["size", "Tamaño", "number"],
+          ["color", "Color", "color"]],
+  color: [["color", "Color", "color"]],
+};
+const SCHEDULE = [["desde", "Desde (HH:MM)"], ["hasta", "Hasta (HH:MM)"],
+                  ["dias", "Días (lun,mar,…)"]];
+const SKELETONS = {
+  text: {type: "text", text: "NUEVO", size: 24, color: "#ffffff", duration: 5},
+  image: {type: "image", path: "imagenes/ejemplo.png", duration: 5},
+  video: {type: "video", path: "video.mp4", duration: 10},
+  live: {type: "live", url: "http://127.0.0.1:8080/stream.mjpg", fps: 30, duration: 3600},
+  clock: {type: "clock", format: "%H:%M:%S", size: 48, color: "#ffffff", duration: 8},
+  color: {type: "color", color: "#102040", duration: 2},
+};
+
+let doc = null;
+let debounce = null;
+const $ = (id) => document.getElementById(id);
+
+function setStatus(data) {
+  if (data.playlist) doc = data.playlist;
+  $("path").textContent = data.path || "";
+  const err = $("error");
+  if (data.error) { err.hidden = false; err.textContent = data.error; }
+  else { err.hidden = true; err.textContent = ""; }
+  const dirty = $("dirty");
+  dirty.textContent = data.dirty ? "sin guardar" : "guardado";
+  dirty.className = "badge " + (data.dirty ? "warn" : "ok");
+}
+
+function post(url, body) {
+  return fetch(url, {method: "POST", headers: {"Content-Type": "application/json"},
+                     body: JSON.stringify(body)})
+    .then((r) => r.json()).then(setStatus);
+}
+function push() {
+  clearTimeout(debounce);
+  debounce = setTimeout(() => post("/api/playlist", doc), 250);
+}
+
+function field(slide, spec) {
+  const [key, label, kind, options] = spec;
+  const wrap = document.createElement("div");
+  wrap.className = "field";
+  const lab = document.createElement("label");
+  lab.textContent = label;
+  wrap.appendChild(lab);
+
+  let input;
+  if (kind === "select") {
+    input = document.createElement("select");
+    for (const opt of options) {
+      const o = document.createElement("option");
+      o.value = opt;
+      o.textContent = opt || "(ninguno)";
+      input.appendChild(o);
+    }
+    input.value = slide[key] ?? "";
+  } else if (kind === "textarea") {
+    input = document.createElement("textarea");
+    input.value = slide[key] ?? "";
+  } else if (kind === "checkbox") {
+    input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = slide[key] !== false;
+  } else if (kind === "color") {
+    input = document.createElement("input");
+    input.type = "color";
+    input.value = slide[key] ?? "#ffffff";
+  } else {
+    input = document.createElement("input");
+    input.type = kind === "number" ? "number" : "text";
+    if (kind === "number") input.step = "any";
+    input.value = slide[key] ?? "";
+  }
+  input.oninput = () => {
+    if (kind === "checkbox") slide[key] = input.checked;
+    else if (kind === "number") slide[key] = input.value === "" ? 0 : Number(input.value);
+    else if (input.value === "") delete slide[key];
+    else slide[key] = input.value;
+    push();
+  };
+  wrap.appendChild(input);
+  return wrap;
+}
+
+function scheduleField(slide, key, label) {
+  const wrap = document.createElement("div");
+  wrap.className = "field";
+  const lab = document.createElement("label");
+  lab.textContent = label;
+  wrap.appendChild(lab);
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = key === "dias" ? "todos" : "HH:MM";
+  input.value = key === "dias" ? (slide.dias || []).join(",") : (slide[key] ?? "");
+  input.oninput = () => {
+    const value = input.value.trim();
+    if (value === "") delete slide[key];
+    else if (key === "dias") slide.dias = value.split(",").map((d) => d.trim()).filter(Boolean);
+    else slide[key] = value;
+    push();
+  };
+  wrap.appendChild(input);
+  return wrap;
+}
+
+function uploader(slide) {
+  const wrap = document.createElement("div");
+  wrap.className = "field";
+  const lab = document.createElement("label");
+  lab.textContent = "Subir archivo";
+  wrap.appendChild(lab);
+  const input = document.createElement("input");
+  input.type = "file";
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    const data = await file.arrayBuffer();
+    const res = await fetch("/api/upload", {method: "POST",
+                                            headers: {"X-Filename": file.name}, body: data});
+    const json = await res.json();
+    if (json.ok) {
+      slide.path = json.path;
+      render();
+      push();
+    }
+  };
+  wrap.appendChild(input);
+  return wrap;
+}
+
+function move(index, delta) {
+  const target = index + delta;
+  if (target < 0 || target >= doc.slides.length) return;
+  const [item] = doc.slides.splice(index, 1);
+  doc.slides.splice(target, 0, item);
+  render();
+  push();
+}
+
+function remove(index) {
+  doc.slides.splice(index, 1);
+  render();
+  push();
+}
+
+function add() {
+  doc.slides.push(JSON.parse(JSON.stringify(SKELETONS[$("newtype").value])));
+  render();
+  push();
+}
+
+function previewSlide(index) {
+  $("preview").src = `/preview.mjpg?slide=${index}`;
+  $("previewing").textContent = `slide ${index + 1}`;
+}
+function previewCycle() {
+  $("preview").src = "/preview.mjpg";
+  $("previewing").textContent = "";
+}
+
+function card(slide, index) {
+  const card = document.createElement("section");
+  card.className = "card";
+
+  const head = document.createElement("header");
+  const type = document.createElement("span");
+  type.className = "type";
+  type.textContent = `${index + 1}. ${slide.type}`;
+  head.appendChild(type);
+  head.appendChild(field(slide, ["duration", "Duración (s)", "number"]));
+  const spacer = document.createElement("span");
+  spacer.className = "spacer";
+  head.appendChild(spacer);
+  for (const [label, fn] of [["ver", () => previewSlide(index)],
+                             ["↑", () => move(index, -1)],
+                             ["↓", () => move(index, 1)],
+                             ["✕", () => remove(index)]]) {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.onclick = fn;
+    head.appendChild(b);
+  }
+  card.appendChild(head);
+
+  const body = document.createElement("div");
+  body.className = "body";
+  for (const spec of FIELDS[slide.type] || []) body.appendChild(field(slide, spec));
+  for (const [key, label] of SCHEDULE) body.appendChild(scheduleField(slide, key, label));
+  if (slide.type === "image" || slide.type === "video") body.appendChild(uploader(slide));
+  card.appendChild(body);
+  return card;
+}
+
+function render() {
+  const host = $("slides");
+  host.innerHTML = "";
+  doc.slides.forEach((slide, index) => host.appendChild(card(slide, index)));
+  const addRow = document.createElement("div");
+  addRow.id = "add";
+  const sel = document.createElement("select");
+  sel.id = "newtype";
+  for (const t of Object.keys(FIELDS)) {
+    const o = document.createElement("option");
+    o.value = t;
+    o.textContent = t;
+    sel.appendChild(o);
+  }
+  const btn = document.createElement("button");
+  btn.textContent = "+ Agregar slide";
+  btn.onclick = add;
+  addRow.appendChild(sel);
+  addRow.appendChild(btn);
+  host.appendChild(addRow);
+}
+
+$("save").onclick = () => post("/api/save", {});
+$("cycle").onclick = previewCycle;
+fetch("/api/playlist").then((r) => r.json()).then((data) => { setStatus(data); render(); });
+</script>
+</body>
+</html>

@@ -29,7 +29,9 @@ from .playlist import (
     Slide,
     TextSlide,
     VideoSlide,
+    is_active,
     load,
+    parse,
 )
 from .timeline import Timeline
 from .video import VideoError, VideoSource, ffmpeg_exe
@@ -53,8 +55,10 @@ __all__ = [
     "contain",
     "ffmpeg_exe",
     "hex_to_rgb",
+    "is_active",
     "load",
     "new_canvas",
+    "parse",
     "paste_aligned",
     "resolve_font",
     "scale_with_grid",
