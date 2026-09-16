@@ -76,7 +76,7 @@ flowchart LR
 | `bitplanes[bit][canal][y][x]` | BRAM → secuenciador | 5 bits/color, 60 KB, **pre-mapeo de scan** |
 | `R1 G1 B1 R2 G2 B2` | FPGA → panel, por puerto | 6 por puerto; ×8 = 48 |
 | `A/B/C` · `D/E` | compartidas por los 8 puertos | `A`/`B`/`C`: paso de dirección (scan 1/8) · `D`/`E`: sin uso, a nivel bajo |
-| `CLK` · `LAT/STB` · `OE` | compartidas por los 8 puertos | lockstep obligatorio |
+| `CLK` · `LAT/STB` · `OE` | compartidas por los 8 puertos | lockstep obligatorio · `OE` activo bajo ([`08`](08_hub75e_y_panel_p5.md)) |
 | `+5V0` | fuentes → filas | una fuente por fila, 2 inyecciones 12 AWG |
 | `0V` | retorno común | punto estrella; referencia GND de datos |
 | `PE` | gabinete y estructura | no se usa como retorno de 5 V |

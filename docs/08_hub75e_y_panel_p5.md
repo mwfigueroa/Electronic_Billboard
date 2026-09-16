@@ -15,7 +15,7 @@ La placa HD-WF4 usa un **ESP32-S3**, lógica de aislamiento/buffer y cuatro cone
 | `A`, `B`, `C`, `D`, `E` | Dirección binaria de la fila multiplexada. La `E` es la línea adicional característica de HUB75E. |
 | `CLK` | Desplaza los bits RGB hacia los registros de los IC drivers del panel. |
 | `LAT` / `STB` | Transfiere el dato desplazado a las salidas de los drivers. |
-| `OE` | Habilita o apaga momentáneamente las salidas; se usa durante el desplazamiento y para PWM de brillo. |
+| `OE` | Habilita o apaga momentáneamente las salidas; se usa durante el desplazamiento y para PWM de brillo. **Activo bajo: `0` enciende la fila, `1` la apaga.** El FPGA entrega la señal ya invertida respecto de su display-enable interno. |
 | `GND` | Referencia eléctrica de las señales. Debe ser común entre controladora y fuentes de los módulos. |
 
 El cable HUB75E transporta **señales lógicas**, no la potencia de los paneles. La alimentación de 5 V se inyecta por las ramas de potencia previstas en `03_electrico.md`.

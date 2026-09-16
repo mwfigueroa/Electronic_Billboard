@@ -99,7 +99,7 @@ Esto evita el problema que descartó al EP4CE6: el refresco lee de memoria local
 
 ## Punto de operación
 
-Con 8 buses, 2.048 clocks de datos por bitplane. El secuenciador implementado ([`driver-5a75b/bcm_sequencer`](../driver-5a75b/README.md)) agrega 4 clocks de blanking por paso de dirección —necesarios para latchear y asentar la fila con `OE` en bajo—, así que el frame real usa 2.080 clocks por bitplane:
+Con 8 buses, 2.048 clocks de datos por bitplane. El secuenciador implementado ([`driver-5a75b/bcm_sequencer`](../driver-5a75b/README.md)) agrega 4 clocks de blanking por paso de dirección —necesarios para latchear y asentar la fila con las salidas apagadas—, así que el frame real usa 2.080 clocks por bitplane:
 
 | Profundidad | 12,5 MHz | 16 MHz | 25 MHz |
 |---|---:|---:|---:|
