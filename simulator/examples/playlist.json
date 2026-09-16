@@ -10,10 +10,11 @@
   "slides": [
     {
       "type": "text",
-      "text": "BILLBOARD",
-      "size": 40,
-      "color": "#ffffff",
-      "duration": 4
+      "text": " Martin Figueroa",
+      "size": 25,
+      "color": "#e26a6a",
+      "duration": 4,
+      "align": "center"
     },
     {
       "type": "text",
