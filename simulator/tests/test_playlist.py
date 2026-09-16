@@ -6,6 +6,7 @@ import pytest
 from panel_sim.playlist import (
     Display,
     ImageSlide,
+    LiveSlide,
     PlaylistError,
     TextSlide,
     VideoSlide,
@@ -75,6 +76,59 @@ def test_load_example_video():
     assert slide.path.resolve() == (EXAMPLES.parent / "media" / "sintel_10s.mp4").resolve()
     assert slide.loop is True
     assert playlist.slides[1].type == "text"
+
+
+def test_live_slide_udp(tmp_path):
+    path = _write(
+        tmp_path,
+        [{
+            "type": "live", "duration": 60,
+            "url": "udp://127.0.0.1:5000",
+            "format": "rawvideo", "size": "256x128",
+        }],
+    )
+    slide = load(path).slides[0]
+    assert isinstance(slide, LiveSlide)
+    assert slide.url == "udp://127.0.0.1:5000"
+    assert slide.input_args == (
+        "-f", "rawvideo", "-pixel_format", "rgb24", "-video_size", "256x128",
+    )
+
+
+def test_live_slide_http_autodetecta(tmp_path):
+    path = _write(
+        tmp_path,
+        [{"type": "live", "duration": 10, "url": "http://127.0.0.1:8080/stream.mjpg"}],
+    )
+    slide = load(path).slides[0]
+    assert isinstance(slide, LiveSlide)
+    assert slide.input_args == ()
+
+
+def test_live_rawvideo_requires_size(tmp_path):
+    path = _write(
+        tmp_path,
+        [{"type": "live", "duration": 10, "url": "udp://127.0.0.1:5000", "format": "rawvideo"}],
+    )
+    with pytest.raises(PlaylistError, match="size"):
+        load(path)
+
+
+def test_live_bad_format(tmp_path):
+    path = _write(
+        tmp_path,
+        [{"type": "live", "duration": 10, "url": "udp://x", "format": "rawvidio"}],
+    )
+    with pytest.raises(PlaylistError, match="format"):
+        load(path)
+
+
+def test_load_example_live():
+    playlist = load(EXAMPLES / "playlist_live.json")
+    slide = playlist.slides[0]
+    assert isinstance(slide, LiveSlide)
+    assert slide.url == "http://127.0.0.1:8080/stream.mjpg"
+    assert slide.fps == 30.0
 
 
 def test_unknown_key(tmp_path):

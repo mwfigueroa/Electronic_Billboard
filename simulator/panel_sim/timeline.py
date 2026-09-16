@@ -14,7 +14,15 @@ import numpy as np
 from PIL import Image
 
 from .canvas import contain, hex_to_rgb, new_canvas, paste_aligned, text_image
-from .playlist import ClockSlide, ColorSlide, ImageSlide, Playlist, TextSlide, VideoSlide
+from .playlist import (
+    ClockSlide,
+    ColorSlide,
+    ImageSlide,
+    LiveSlide,
+    Playlist,
+    TextSlide,
+    VideoSlide,
+)
 from .video import VideoSource
 
 
@@ -24,7 +32,7 @@ class Timeline:
             raise ValueError("la playlist no tiene slides")
         self.playlist = playlist
         self._images: dict[Path, Image.Image] = {}
-        self._videos: dict[Path, VideoSource] = {}
+        self._videos: dict[object, VideoSource] = {}
 
     @property
     def duration(self) -> float:
@@ -49,7 +57,7 @@ class Timeline:
         display = self.playlist.display
         width, height = display.width, display.height
 
-        if isinstance(slide, VideoSlide):
+        if isinstance(slide, VideoSlide) or isinstance(slide, LiveSlide):
             return self._video_frame(slide, local_t)
         if isinstance(slide, ColorSlide):
             canvas = new_canvas(width, height, hex_to_rgb(slide.color))
@@ -115,13 +123,21 @@ class Timeline:
             self._images[path] = Image.open(path).convert("RGBA")
         return self._images[path]
 
-    def _video_frame(self, slide: VideoSlide, local_t: float) -> np.ndarray:
-        source = self._videos.get(slide.path)
+    def _video_frame(self, slide: VideoSlide | LiveSlide, local_t: float) -> np.ndarray:
+        source = self._videos.get(slide)
         if source is None:
             display = self.playlist.display
-            source = VideoSource(
-                slide.path, (display.width, display.height),
-                fps=slide.fps, loop=slide.loop,
-            )
-            self._videos[slide.path] = source
+            size = (display.width, display.height)
+            if isinstance(slide, LiveSlide):
+                source = VideoSource(
+                    slide.url, size, fps=slide.fps, live=True,
+                    input_args=slide.input_args,
+                )
+            else:
+                source = VideoSource(
+                    slide.path, size, fps=slide.fps, loop=slide.loop,
+                )
+            self._videos[slide] = source
+        if isinstance(slide, LiveSlide):
+            return source.frame_latest()
         return source.frame_at(local_t)

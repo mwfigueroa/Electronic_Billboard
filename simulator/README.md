@@ -112,9 +112,36 @@ cargar (no un render a medias). Cada slide tiene `type` y `duration` (segundos).
   El clip se eligió por su **paleta oscura**: ~40 % de sus subpíxeles cae bajo
   sRGB 39, el umbral donde 5 bits apaga (mediana sRGB ≈68) — es el peor caso a
   propósito, no reemplazar por material más brillante.
+- `live`: fuente viva (contrato de wire v1, [`docs/14`](../docs/14_software_contenido.md)).
+  `url` es la entrada de ffmpeg; `fps` la cadencia; y según el transporte,
+  `format` (`rawvideo`, `x11grab`, `v4l2`, `mjpeg`), `pixel_format` y `size`.
+  Si el panel se atrasa descarta cuadros y sigue el último. `make app` publica
+  una fuente de ejemplo y `make view PLAYLIST=examples/playlist_live.json` la
+  muestra en el panel.
 - `clock`: `format` estilo `strftime`; se re-renderiza en cada frame con la
   hora local (o con `--time` en el render).
 - `color`: `color` plano.
+
+## Fuente viva: contrato de wire v1
+
+La app de PC manda frames **RGB888 de 256×128** y el panel hace el resto
+(gamma, cuantización, bitplanes, máscara): la app no sabe nada de LED. El
+contrato y los transportes están en [`docs/14`](../docs/14_software_contenido.md).
+
+```bash
+make app                                          # MJPEG en 127.0.0.1:8080
+make view PLAYLIST=examples/playlist_live.json    # el panel lo consume
+```
+
+| Transporte | Campos del slide `live` |
+|---|---|
+| MJPEG/HTTP (autodetectado) | `{"url": "http://host/stream.mjpg"}` |
+| rawvideo sobre UDP | `{"url": "udp://127.0.0.1:5000", "format": "rawvideo", "size": "256x128"}` |
+| Ventana X11 | `{"url": ":0.0+0,0", "format": "x11grab", "size": "256x128"}` |
+
+`examples/app_ejemplo.py` es la implementación de referencia del lado app:
+renderiza con PIL y publica MJPEG/HTTP; sirve de plantilla para cualquier
+lenguaje o framework. Si el stream se corta, el panel reintenta cada 2 s.
 
 ## Convenciones
 

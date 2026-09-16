@@ -1,9 +1,10 @@
 import subprocess
+import time
 
 import numpy as np
 import pytest
 
-from panel_sim.playlist import Display, Playlist, VideoSlide
+from panel_sim.playlist import Display, LiveSlide, Playlist, VideoSlide
 from panel_sim.timeline import Timeline
 from panel_sim.video import VideoError, VideoSource, ffmpeg_exe
 
@@ -78,3 +79,39 @@ def test_timeline_plays_video(sample_video):
     assert not np.array_equal(first, later)
     assert timeline.close() == 1
     assert timeline.close() == 0
+
+
+def test_live_source_returns_latest(tmp_path):
+    frames = [np.full((128, 256, 3), c, dtype=np.uint8) for c in (30, 120, 220)]
+    raw = tmp_path / "stream.raw"
+    raw.write_bytes(b"".join(f.tobytes() for f in frames))
+    source = VideoSource(
+        raw, (256, 128), live=True,
+        input_args=("-f", "rawvideo", "-pixel_format", "rgb24", "-video_size", "256x128"),
+    )
+    got = source.frame_latest()
+    for _ in range(20):   # la fuente viva entrega lo disponible en cada llamada
+        if int(got[0, 0, 0]) == 220:
+            break
+        time.sleep(0.01)
+        got = source.frame_latest()
+    assert got.shape == (128, 256, 3)
+    assert int(got[0, 0, 0]) == 220    # llega al último disponible
+    assert int(source.frame_latest()[0, 0, 0]) == 220   # sin datos nuevos
+    source.close()
+
+
+def test_timeline_live_slide(tmp_path):
+    raw = tmp_path / "stream.raw"
+    raw.write_bytes(np.full((128, 256, 3), 200, dtype=np.uint8).tobytes())
+    playlist = Playlist(
+        display=Display(width=256, height=128),
+        slides=(
+            LiveSlide(duration=60.0, url=str(raw), format="rawvideo", size="256x128"),
+        ),
+        source=None,  # type: ignore[arg-type]
+    )
+    timeline = Timeline(playlist)
+    frame = timeline.frame_at(0, 0.5)
+    assert int(frame[0, 0, 0]) == 200
+    assert timeline.close() == 1

@@ -9,6 +9,8 @@ Tipos soportados:
 - ``text``  — texto estático o desplazándose.
 - ``image`` — imagen (PNG/JPG), contenida dentro del canvas.
 - ``video`` — video (MP4/WebM), decodificado con ffmpeg (ver ``video.py``).
+- ``live``  — fuente viva por red o X11 (contrato de wire v1, docs/14):
+  frames RGB888 de 256×128 por UDP, MJPEG/HTTP o ``x11grab``.
 - ``clock`` — reloj local; se re-renderiza en cada frame del visor.
 - ``color`` — color plano.
 
@@ -75,6 +77,40 @@ class VideoSlide:
     fps: float = 30.0
 
 
+LIVE_FORMATS = (None, "rawvideo", "x11grab", "v4l2", "mjpeg")
+
+
+@dataclass(frozen=True)
+class LiveSlide:
+    """Fuente viva (contrato de wire v1, docs/14).
+
+    ``url`` es la entrada de ffmpeg: ``udp://host:puerto``,
+    ``http://host/stream.mjpg`` o el display para ``x11grab`` (``:0.0+0,0``).
+    ``size`` es el tamaño de la fuente para ``rawvideo`` (``"256x128"``).
+    """
+
+    type: ClassVar[str] = "live"
+    duration: float
+    url: str
+    fps: float = 30.0
+    format: str | None = None
+    pixel_format: str | None = None
+    size: str | None = None
+
+    @property
+    def input_args(self) -> tuple[str, ...]:
+        args: list[str] = []
+        if self.format:
+            args += ["-f", self.format]
+        if self.format == "rawvideo":
+            args += ["-pixel_format", self.pixel_format or "rgb24"]
+        if self.size:
+            args += ["-video_size", self.size]
+        if self.format in ("x11grab", "v4l2"):
+            args += ["-framerate", f"{self.fps:g}"]
+        return tuple(args)
+
+
 @dataclass(frozen=True)
 class ClockSlide:
     type: ClassVar[str] = "clock"
@@ -93,7 +129,7 @@ class ColorSlide:
     color: str
 
 
-Slide = TextSlide | ImageSlide | VideoSlide | ClockSlide | ColorSlide
+Slide = TextSlide | ImageSlide | VideoSlide | LiveSlide | ClockSlide | ColorSlide
 
 
 @dataclass(frozen=True)
@@ -161,8 +197,8 @@ def _parse_slide(raw: Any, base: Path, index: int) -> Slide:
         raise PlaylistError(f"slide {index}: debe ser un objeto")
     ctx = f"slide {index}"
     tipo = raw.get("type")
-    if tipo not in {"text", "image", "video", "clock", "color"}:
-        raise PlaylistError(f"{ctx}: 'type' debe ser text, image, video, clock o color")
+    if tipo not in {"text", "image", "video", "live", "clock", "color"}:
+        raise PlaylistError(f"{ctx}: 'type' debe ser text, image, video, live, clock o color")
     duration = _number(raw, "duration", None, ctx, positive=True, required=True)
     if tipo == "text":
         return _parse_text(raw, ctx, duration)
@@ -170,6 +206,8 @@ def _parse_slide(raw: Any, base: Path, index: int) -> Slide:
         return _parse_image(raw, base, ctx, duration)
     if tipo == "video":
         return _parse_video(raw, base, ctx, duration)
+    if tipo == "live":
+        return _parse_live(raw, ctx, duration)
     if tipo == "clock":
         return _parse_clock(raw, ctx, duration)
     return _parse_color(raw, ctx, duration)
@@ -217,6 +255,26 @@ def _parse_video(raw: dict, base: Path, ctx: str, duration: float) -> VideoSlide
         path=base / _string(raw, "path", ctx, required=True),
         loop=loop,
         fps=_number(raw, "fps", 30.0, ctx, positive=True),
+    )
+
+
+def _parse_live(raw: dict, ctx: str, duration: float) -> LiveSlide:
+    _check_keys(raw, {"type", "duration", "url", "fps", "format", "pixel_format", "size"}, ctx)
+    fmt = raw.get("format")
+    if fmt not in LIVE_FORMATS:
+        raise PlaylistError(
+            f"{ctx}: 'format' debe ser uno de {[f for f in LIVE_FORMATS if f]} o ausentarse"
+        )
+    size = _optional_string(raw, "size", ctx)
+    if fmt == "rawvideo" and size is None:
+        raise PlaylistError(f"{ctx}: 'format': 'rawvideo' requiere 'size' (ej. \"256x128\")")
+    return LiveSlide(
+        duration=duration,
+        url=_string(raw, "url", ctx, required=True),
+        fps=_number(raw, "fps", 30.0, ctx, positive=True),
+        format=fmt,
+        pixel_format=_optional_string(raw, "pixel_format", ctx),
+        size=size,
     )
 
 
@@ -317,6 +375,15 @@ def _optional_choice(raw: dict, key: str, options: set[str], ctx: str) -> str | 
         return None
     if value not in options:
         raise PlaylistError(f"{ctx}: '{key}' debe ser uno de {sorted(options)}")
+    return value
+
+
+def _optional_string(raw: dict, key: str, ctx: str) -> str | None:
+    value = raw.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value:
+        raise PlaylistError(f"{ctx}: '{key}' debe ser una cadena no vacía")
     return value
 
 
