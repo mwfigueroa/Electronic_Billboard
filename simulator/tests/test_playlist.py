@@ -1,13 +1,16 @@
 import json
+from datetime import datetime, time as dt_time
 from pathlib import Path
 
 import pytest
 
-from panel_sim.playlist import (
+from content.playlist import (
+    DIAS,
     Display,
     ImageSlide,
     LiveSlide,
     PlaylistError,
+    Schedule,
     TextSlide,
     VideoSlide,
     load,
@@ -129,6 +132,71 @@ def test_load_example_live():
     assert isinstance(slide, LiveSlide)
     assert slide.url == "http://127.0.0.1:8080/stream.mjpg"
     assert slide.fps == 30.0
+
+
+def test_schedule_parse(tmp_path):
+    path = _write(tmp_path, [{
+        "type": "text", "duration": 5, "text": "X",
+        "desde": "08:00", "hasta": "22:00", "dias": ["lun", "vie"],
+    }])
+    slide = load(path).slides[0]
+    assert isinstance(slide.schedule, Schedule)
+    assert slide.schedule.dias == (0, 4)
+    assert slide.schedule.active_at(datetime(2026, 9, 14, 9, 0))       # lunes
+    assert not slide.schedule.active_at(datetime(2026, 9, 15, 9, 0))   # martes
+    assert not slide.schedule.active_at(datetime(2026, 9, 14, 23, 0))  # fuera de hora
+
+
+def test_schedule_sin_dias_es_todos(tmp_path):
+    path = _write(tmp_path, [{
+        "type": "color", "duration": 5, "color": "#000000",
+        "desde": "08:00", "hasta": "22:00",
+    }])
+    slide = load(path).slides[0]
+    assert slide.schedule.dias == tuple(range(7))
+    assert DIAS[3] == "jue"
+
+
+def test_schedule_nocturno_cruza_medianoche(tmp_path):
+    path = _write(tmp_path, [{
+        "type": "color", "duration": 5, "color": "#000000",
+        "desde": "22:00", "hasta": "06:00",
+    }])
+    slide = load(path).slides[0]
+    assert slide.schedule.active_at(datetime(2026, 9, 14, 23, 30))
+    assert slide.schedule.active_at(datetime(2026, 9, 14, 5, 0))
+    assert not slide.schedule.active_at(datetime(2026, 9, 14, 12, 0))
+
+
+def test_schedule_sin_horario_es_siempre(tmp_path):
+    path = _write(tmp_path, [{"type": "color", "duration": 5, "color": "#000000"}])
+    assert load(path).slides[0].schedule is None
+
+
+def test_load_example_horarios():
+    playlist = load(EXAMPLES / "playlist_horarios.json")
+    assert len(playlist.slides) == 3
+    dia = datetime(2026, 9, 14, 12, 0)    # lunes mediodía
+    noche = datetime(2026, 9, 14, 23, 0)
+    textos_dia = [s.text for s in playlist.active_slides(dia) if isinstance(s, TextSlide)]
+    textos_noche = [s.text for s in playlist.active_slides(noche) if isinstance(s, TextSlide)]
+    assert textos_dia == ["ABIERTO"]
+    assert textos_noche == ["CERRADO"]
+    assert len(playlist.active_slides(dia)) == 2   # texto + reloj, siempre vigente
+
+
+@pytest.mark.parametrize("extra", [
+    {"desde": "08:00"},
+    {"hasta": "22:00"},
+    {"desde": "8:00", "hasta": "22:00"},
+    {"desde": "08:00", "hasta": "25:00"},
+    {"desde": "08:00", "hasta": "22:00", "dias": ["lunes"]},
+    {"desde": "08:00", "hasta": "22:00", "dias": []},
+])
+def test_schedule_errores(tmp_path, extra):
+    path = _write(tmp_path, [{"type": "color", "duration": 5, "color": "#000000", **extra}])
+    with pytest.raises(PlaylistError):
+        load(path)
 
 
 def test_unknown_key(tmp_path):

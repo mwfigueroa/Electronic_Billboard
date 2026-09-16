@@ -1,13 +1,16 @@
-"""App de ejemplo del contrato de wire v1 (docs/14).
+"""Demo mínima del transporte del contrato de wire v1 (docs/14).
 
-Publica frames RGB888 de 256×128 por MJPEG/HTTP. Cualquier aplicación que
-hable el contrato puede reemplazarla: el panel —el mismo visor del simulador—
-la consume con un slide `live`. No sabe nada de LED, gamma ni profundidad de
-color: eso queda del lado del panel.
+Ojo: esto es una **demo del canal**, no la app. Dibuja con Pillow crudo a
+propósito, para mostrar que cualquier lenguaje o framework puede publicar el
+contrato sin conocer nada del proyecto. La app de referencia —playlist,
+horarios, recarga en caliente y supervisión— es ``content/app.py``
+(``make app``).
+
+Publica frames RGB888 de 256×128 por MJPEG/HTTP.
 
 Uso:
-    python examples/app_ejemplo.py                      # 127.0.0.1:8080
-    .venv/bin/python -m panel_sim.viewer examples/playlist_live.json
+    python examples/app_ejemplo.py
+    make view PLAYLIST=examples/playlist_live.json
 """
 
 from __future__ import annotations

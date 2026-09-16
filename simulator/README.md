@@ -1,12 +1,16 @@
-# Simulador de panel
+# Simulador de panel y app de contenido
 
-Referencia de software del pipeline de contenido del cartel
-([`docs/14_software_contenido.md`](../docs/14_software_contenido.md)):
-playlist declarativa → canvas 256×128 RGB888 → gamma y cuantización a N bits →
-bitplanes. Produce PNG de cada slide y un **visor animado** en tiempo real, y
-emite los **vectores dorados** contra los que se valida el HDL
-([`../driver-5a75b/`](../driver-5a75b/README.md)). La cadena de
-hardware que estos números validan está en
+Software del cartel ([`docs/14_software_contenido.md`](../docs/14_software_contenido.md)),
+separado en dos paquetes por la **frontera del contrato de wire v1**:
+
+- **`content/`** — lado app: playlist declarativa → composición → frames RGB888
+  de 256×128. Incluye la app de publicación en vivo (`content/app.py`).
+- **`panel_sim/`** — lado panel: gamma, cuantización, bitplanes, temporización
+  BCM y máscara de LED. Incluye el visor del panel virtual y los **vectores
+  dorados** contra los que se valida el HDL
+  ([`../driver-5a75b/`](../driver-5a75b/README.md)).
+
+La cadena de hardware que estos números validan está en
 [`docs/16_cadena_completa.md`](../docs/16_cadena_completa.md).
 
 ## Qué es y qué no es
@@ -25,6 +29,7 @@ Es software puro. Responde *"cómo se vería esto en la pantalla"* y nada más:
 cd simulator
 make test        # pytest
 make hooks       # activa el pre-commit del repo (tests si el commit toca simulator/)
+make app         # publica la playlist como fuente viva (MJPEG en 127.0.0.1:8080)
 make render      # out/00_text.png, out/01_text.png, … con píxeles visibles
 make view        # visor animado (requiere display)
 make vectors     # regenera vectors/ para los testbenches
@@ -122,6 +127,21 @@ cargar (no un render a medias). Cada slide tiene `type` y `duration` (segundos).
   hora local (o con `--time` en el render).
 - `color`: `color` plano.
 
+Cualquier slide acepta además un **horario** opcional:
+
+```jsonc
+{ "type": "text", "text": "Pleno día", "duration": 8,
+  "desde": "08:00", "hasta": "22:00",
+  "dias": ["lun", "mar", "mie", "jue", "vie"] }
+```
+
+- `desde`/`hasta`: `HH:MM`, con `hasta` exclusivo. Si `desde` es mayor que
+  `hasta` la ventana cruza la medianoche (`22:00` → `06:00`).
+- `dias`: subconjunto de `lun mar mie jue vie sab dom`; por defecto, todos.
+- Fuera de la ventana el slide no se emite: el visor y la app lo saltan, y si
+  no queda ninguno vigente se publica negro.
+- Ejemplo completo: `examples/playlist_horarios.json`.
+
 ## Fuente viva: contrato de wire v1
 
 La app de PC manda frames **RGB888 de 256×128** y el panel hace el resto
@@ -139,9 +159,21 @@ make view PLAYLIST=examples/playlist_live.json    # el panel lo consume
 | rawvideo sobre UDP | `{"url": "udp://127.0.0.1:5000", "format": "rawvideo", "size": "256x128"}` |
 | Ventana X11 | `{"url": ":0.0+0,0", "format": "x11grab", "size": "256x128"}` |
 
-`examples/app_ejemplo.py` es la implementación de referencia del lado app:
-renderiza con PIL y publica MJPEG/HTTP; sirve de plantilla para cualquier
-lenguaje o framework. Si el stream se corta, el panel reintenta cada 2 s.
+La **app de referencia** es `content/app.py` (`make app`, con
+`PLAYLIST=...` opcional): compone la playlist con el mismo `Timeline` del
+simulador, respeta los horarios, recarga el archivo en caliente si cambia y
+expone estado para supervisión:
+
+| Ruta | Qué devuelve |
+|---|---|
+| `/stream.mjpg` | el stream MJPEG que consume el panel |
+| `/status` | JSON: frames, errores, slide actual, antigüedad del último cuadro |
+| `/` | texto con las rutas |
+
+`examples/app_ejemplo.py` (`make demo`) es la **demo mínima del transporte**:
+dibuja con Pillow crudo a propósito, para mostrar que cualquier lenguaje o
+framework puede publicar el contrato sin conocer el proyecto. No es la app.
+Si el stream se corta, el panel reintenta la conexión cada 2 s.
 
 ## Convenciones
 
@@ -199,24 +231,28 @@ escala 4 ≈ 2,7 m.
 ## Estructura
 
 ```
-panel_sim/
-├── playlist.py    carga y validación del JSON
-├── canvas.py      primitivas Pillow: texto, imágenes, grilla de píxeles
-├── quantize.py    gamma y cuantización a N bits
-├── bitplanes.py   RGB → bitplanes (referencia de oro del HDL)
-├── timing.py      tasa de refresco del modelo BCM
-├── viewing.py     emulación de distancia (calibración del monitor)
-├── video.py       decodificación de video vía ffmpeg
-├── timeline.py    composición determinista slide → canvas
-├── render.py      CLI: PNG por slide
-├── viewer.py      CLI: visor pygame animado
-└── vectors.py     CLI: vectores dorados para testbenches
+content/             lado app (termina en RGB888)
+├── playlist.py      carga y validación del JSON (con horarios)
+├── canvas.py        primitivas Pillow: texto, imágenes, grilla
+├── timeline.py      composición determinista slide → frame (horarios incluidos)
+├── video.py         decodificación de video y streams vía ffmpeg
+└── app.py           CLI: publica la playlist como fuente viva
+
+panel_sim/           lado panel (empieza en RGB888)
+├── quantize.py      gamma y cuantización a N bits
+├── bitplanes.py     RGB → bitplanes (referencia de oro del HDL)
+├── timing.py        tasa de refresco del modelo BCM
+├── viewing.py       emulación de distancia (calibración del monitor)
+├── render.py        CLI: PNG por slide
+├── viewer.py        CLI: visor pygame animado
+└── vectors.py       CLI: vectores dorados para testbenches
 ```
 
 ## Pendientes
 
 - Mapeo de scan del panel: es hardware, no simulador.
-- Decisión del contrato de wire (RGB vs bitplanes serializados) — sigue
-  abierta en [`docs/14`](../docs/14_software_contenido.md).
 - UI de autoría: deliberadamente postergada; mientras tanto la playlist se
-  edita a mano.
+  edita a mano ([`docs/14`](../docs/14_software_contenido.md)).
+- Supervisión del proceso en producción: la app corre en primer plano y
+  `/status` es la señal para vigilarla (el supervisor —systemd, kiosco— queda
+  fuera de este repo).

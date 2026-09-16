@@ -1,8 +1,12 @@
 """Línea de tiempo: compone cada slide a un canvas RGB888.
 
-Determinista respecto de ``t`` (y de la hora para los slides de reloj): el
-visor y el render PNG consumen el mismo ``frame_at``, así que no hay dos
-caminos de composición que puedan divergir.
+Determinista respecto de ``t`` (y de la hora para los slides de reloj y los
+horarios): el visor y el render PNG consumen el mismo ``frame_at``, así que no
+hay dos caminos de composición que puedan divergir.
+
+Con horarios, el "programa" es el subconjunto de slides vigentes en ``now``:
+``locate`` mapea el tiempo dentro de ese subconjunto y ``next_active`` salta
+los que no están vigentes.
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ from .playlist import (
     Playlist,
     TextSlide,
     VideoSlide,
+    is_active,
 )
 from .video import VideoSource
 
@@ -38,18 +43,53 @@ class Timeline:
     def duration(self) -> float:
         return sum(slide.duration for slide in self.playlist.slides)
 
-    def locate(self, t: float) -> tuple[int, float]:
-        """Tiempo absoluto → (índice de slide, tiempo local). Envuelve."""
-        t %= self.duration
-        for index, slide in enumerate(self.playlist.slides):
+    def program_duration(self, now: datetime | None = None) -> float:
+        """Duración total de los slides vigentes a esa hora."""
+        now = now or datetime.now()
+        return sum(slide.duration for slide in self.playlist.active_slides(now))
+
+    def slide_active(self, index: int, now: datetime | None = None) -> bool:
+        return is_active(self.playlist.slides[index], now or datetime.now())
+
+    def next_active(self, index: int, now: datetime | None = None, step: int = 1) -> int | None:
+        """Índice del próximo slide vigente (cíclico); None si no hay ninguno."""
+        now = now or datetime.now()
+        total = len(self.playlist.slides)
+        for k in range(1, total + 1):
+            candidate = (index + step * k) % total
+            if self.slide_active(candidate, now):
+                return candidate
+        return None
+
+    def locate(self, t: float, now: datetime | None = None) -> tuple[int, float] | None:
+        """Tiempo absoluto → (índice, tiempo local) dentro del programa vigente.
+
+        ``None`` si ningún slide está vigente a esa hora. Sin horarios, el
+        programa es la playlist completa y el resultado es el de siempre.
+        """
+        now = now or datetime.now()
+        active = [
+            (index, slide)
+            for index, slide in enumerate(self.playlist.slides)
+            if is_active(slide, now)
+        ]
+        total = sum(slide.duration for _, slide in active)
+        if total <= 0:
+            return None
+        t %= total
+        for index, slide in active:
             if t < slide.duration:
                 return index, t
             t -= slide.duration
-        last = len(self.playlist.slides) - 1
-        return last, self.playlist.slides[last].duration
+        index, slide = active[-1]
+        return index, slide.duration
 
     def frame(self, t: float, now: datetime | None = None) -> np.ndarray:
-        index, local_t = self.locate(t)
+        found = self.locate(t, now)
+        display = self.playlist.display
+        if found is None:
+            return np.zeros((display.height, display.width, 3), dtype=np.uint8)
+        index, local_t = found
         return self.frame_at(index, local_t, now)
 
     def frame_at(self, index: int, local_t: float, now: datetime | None = None) -> np.ndarray:

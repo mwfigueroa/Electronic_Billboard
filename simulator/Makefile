@@ -12,7 +12,7 @@ ARGS    ?= --scale 5
 VIDEO_URL := https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4
 MEDIA   := media/sintel_10s.mp4
 
-.PHONY: all venv test render view vectors video app hooks clean distclean help
+.PHONY: all venv test render view vectors video app demo hooks clean distclean help
 
 all: test render
 
@@ -50,9 +50,13 @@ video: venv
 	curl -fsSL -o $(MEDIA) $(VIDEO_URL)
 	@echo "listo: $(MEDIA) — probar con make view PLAYLIST=examples/playlist_video.json"
 
-# --- App de ejemplo del contrato de wire v1 (docs/14) ------------------------
-# Publica MJPEG/HTTP; el panel la consume con examples/playlist_live.json
+# --- App de contenido (contrato de wire v1, docs/14) -------------------------
+# Publica la playlist como fuente viva: horarios, recarga en caliente, /status
 app: venv
+	$(PY) -m content.app $(PLAYLIST)
+
+# --- Demo mínima del transporte (Pillow crudo; no es la app) ------------------
+demo: venv
 	$(PY) examples/app_ejemplo.py
 
 # --- Vectores dorados para los testbenches del HDL --------------------------
@@ -75,7 +79,8 @@ help:
 	@echo "                Ej.: make view ARGS=\"--panel-distance 5 --monitor-inch 32 --monitor-px 1920 --eye-cm 60\""
 	@echo "make vectors  - regenera vectors/*.mem para los testbenches"
 	@echo "make video    - baja el video de ejemplo (CC-BY) a media/"
-	@echo "make app      - publica el contrato de wire v1 (MJPEG) para el panel"
+	@echo "make app      - publica la playlist como fuente viva (content/app.py)"
+	@echo "make demo     - demo mínima del transporte (Pillow crudo, sin Timeline)"
 	@echo "make view PLAYLIST=examples/playlist_live.json - consume la fuente viva"
 	@echo "make clean    - borra artefactos de salida"
 	@echo "make distclean- borra tambien el venv"

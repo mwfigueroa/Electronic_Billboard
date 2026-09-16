@@ -39,9 +39,10 @@ from pathlib import Path
 
 import numpy as np
 
-from .playlist import load
+from content.playlist import load
+from content.timeline import Timeline
+
 from .quantize import quantize, to_display
-from .timeline import Timeline
 from .timing import refresh_hz
 from .viewing import ViewingSetup
 
@@ -331,6 +332,10 @@ def run(
         )
 
     index = start % n_slides
+    if not timeline.slide_active(index):
+        nxt = timeline.next_active(index)
+        if nxt is not None:
+            index = nxt
     local_t = 0.0
     paused = False
     rendered = 0
@@ -347,10 +352,12 @@ def run(
                 elif event.key == pygame.K_SPACE:
                     paused = not paused
                 elif event.key == pygame.K_LEFT:
-                    index = (index - 1) % n_slides
+                    nxt = timeline.next_active(index, step=-1)
+                    index = nxt if nxt is not None else index
                     local_t = 0.0
                 elif event.key == pygame.K_RIGHT:
-                    index = (index + 1) % n_slides
+                    nxt = timeline.next_active(index, step=1)
+                    index = nxt if nxt is not None else index
                     local_t = 0.0
                 elif event.key in (pygame.K_4, pygame.K_5, pygame.K_6):
                     depth = {pygame.K_4: 4, pygame.K_5: 5, pygame.K_6: 6}[event.key]
@@ -390,13 +397,24 @@ def run(
             layout_report_at = None
 
         dt = clock.tick(fps) / 1000.0
+        now = datetime.now()
         if not paused:
             local_t += dt
             while local_t >= playlist.slides[index].duration:
                 local_t -= playlist.slides[index].duration
-                index = (index + 1) % n_slides
+                nxt = timeline.next_active(index, now)
+                if nxt is not None:
+                    index = nxt
+        # si se cerró la ventana horaria del slide actual, pasar al siguiente
+        if not timeline.slide_active(index, now):
+            nxt = timeline.next_active(index, now)
+            if nxt is not None:
+                index, local_t = nxt, 0.0
 
-        frame = timeline.frame_at(index, local_t, now=datetime.now())
+        if timeline.slide_active(index, now):
+            frame = timeline.frame_at(index, local_t, now=now)
+        else:
+            frame = np.zeros((height, width, 3), dtype=np.uint8)   # sin programa
         last_frame = to_display(quantize(frame, depth, gamma), depth)
         scaled = render_surface(last_frame, panel_size, gap_mask, gap_cell)
         screen.blit(scaled, (panel_x, panel_y))
@@ -406,6 +424,7 @@ def run(
             f"{index + 1}/{n_slides} · {depth}b · gamma {gamma:g} · "
             f"{refresh_hz(clock_mhz * 1e6, depth):.0f}Hz · "
             f"~{viewing.equivalent(width, current_scale):.1f}m · "
+            f"{'SIN HORARIO · ' if not timeline.slide_active(index, now) else ''}"
             f"{'PAUSA · ' if paused else ''}SPACE ←→ 456 G +/- R S Q"
         )
         hud_y = screen.get_height() - HUD_HEIGHT

@@ -4,9 +4,9 @@ import time
 import numpy as np
 import pytest
 
-from panel_sim.playlist import Display, LiveSlide, Playlist, VideoSlide
-from panel_sim.timeline import Timeline
-from panel_sim.video import VideoError, VideoSource, ffmpeg_exe
+from content.playlist import Display, LiveSlide, Playlist, VideoSlide
+from content.timeline import Timeline
+from content.video import VideoError, VideoSource, ffmpeg_exe
 
 
 def _ffmpeg_available() -> bool:

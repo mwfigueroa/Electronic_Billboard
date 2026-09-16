@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "display": {
+    "width": 256,
+    "height": 128,
+    "depth": 5,
+    "gamma": 2.2,
+    "background": "#000000"
+  },
+  "slides": [
+    {
+      "type": "text",
+      "text": "ABIERTO",
+      "size": 30,
+      "color": "#40ff80",
+      "desde": "08:00",
+      "hasta": "20:00",
+      "duration": 6
+    },
+    {
+      "type": "text",
+      "text": "CERRADO",
+      "size": 30,
+      "color": "#8080ff",
+      "desde": "20:00",
+      "hasta": "08:00",
+      "duration": 6
+    },
+    {
+      "type": "clock",
+      "format": "%H:%M",
+      "size": 48,
+      "color": "#ffe040",
+      "duration": 8
+    }
+  ]
+}

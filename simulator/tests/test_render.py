@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from panel_sim.playlist import load
+from content.playlist import load
 from panel_sim.render import parse_time, render
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"

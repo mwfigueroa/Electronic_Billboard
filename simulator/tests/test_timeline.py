@@ -2,15 +2,16 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from panel_sim.playlist import (
+from content.playlist import (
     ClockSlide,
     ColorSlide,
     Display,
     ImageSlide,
     Playlist,
+    Schedule,
     TextSlide,
 )
-from panel_sim.timeline import Timeline
+from content.timeline import Timeline
 
 
 def _playlist(*slides, **display_kwargs):
@@ -105,3 +106,50 @@ def test_static_text_centered():
 def test_timeout_guard_no_slides():
     with pytest.raises(ValueError):
         Timeline(Playlist(display=Display(), slides=(), source=None))  # type: ignore[arg-type]
+
+
+def test_locate_respeta_horarios():
+    from datetime import datetime, time as dt_time
+
+    ahora = datetime(2026, 9, 14, 12, 0)   # lunes mediodía
+    dia = ColorSlide(
+        duration=3.0, color="#ffffff",
+        schedule=Schedule(dt_time(8, 0), dt_time(22, 0)),
+    )
+    noche = ColorSlide(
+        duration=2.0, color="#000000",
+        schedule=Schedule(dt_time(22, 0), dt_time(6, 0)),
+    )
+    timeline = Timeline(_playlist(dia, noche, width=8, height=4))
+    assert timeline.program_duration(ahora) == 3.0
+    assert timeline.locate(0.0, ahora) == (0, 0.0)
+    assert timeline.locate(3.5, ahora) == (0, 0.5)      # envuelve solo entre activos
+    assert timeline.next_active(0, ahora) == 0          # el nocturno no rige
+    assert timeline.next_active(0, datetime(2026, 9, 14, 23, 0)) == 1
+
+
+def test_frame_sin_programa_es_negro():
+    from datetime import datetime, time as dt_time
+
+    ahora = datetime(2026, 9, 14, 12, 0)
+    noche = ColorSlide(
+        duration=2.0, color="#ffffff",
+        schedule=Schedule(dt_time(22, 0), dt_time(6, 0)),
+    )
+    timeline = Timeline(_playlist(noche, width=8, height=4))
+    assert timeline.locate(0.0, ahora) is None
+    frame = timeline.frame(0.0, now=ahora)
+    assert frame.shape == (4, 8, 3)
+    assert frame.max() == 0
+
+
+def test_programa_completo_sin_horarios():
+    timeline = Timeline(_playlist(
+        ColorSlide(duration=2.0, color="#000000"),
+        ColorSlide(duration=3.0, color="#ffffff"),
+    ))
+    assert timeline.locate(2.0) == (1, 0.0)
+    index, local = timeline.locate(4.9)
+    assert (index, round(local, 1)) == (1, 2.9)
+    assert timeline.locate(5.0) == (0, 0.0)
+    assert timeline.next_active(0) == 1

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from panel_sim.canvas import (
+from content.canvas import (
     contain,
     hex_to_rgb,
     new_canvas,

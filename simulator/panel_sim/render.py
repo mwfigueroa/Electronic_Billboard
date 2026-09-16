@@ -13,10 +13,11 @@ from pathlib import Path
 
 from PIL import Image
 
-from .canvas import scale_with_grid
-from .playlist import load
+from content.canvas import scale_with_grid
+from content.playlist import load
+from content.timeline import Timeline
+
 from .quantize import quantize, to_display
-from .timeline import Timeline
 from .timing import refresh_hz
 
 TIME_FORMATS = ("%H:%M:%S", "%Y-%m-%d %H:%M:%S")
