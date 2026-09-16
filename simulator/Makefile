@@ -9,6 +9,7 @@ EXAMPLE := examples/playlist.json
 PLAYLIST ?= $(EXAMPLE)
 OUT     := out
 ARGS    ?= --scale 5
+RAW     ?= /tmp/billboard.sock
 VIDEO_URL := https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4
 MEDIA   := media/sintel_10s.mp4
 
@@ -52,8 +53,9 @@ video: venv
 
 # --- App de contenido (contrato de wire v1, docs/14) -------------------------
 # Publica la playlist como fuente viva: horarios, recarga en caliente, /status
+# y vínculo directo por socket Unix (cuadros crudos, sin códec).
 app: venv
-	$(PY) -m content.app $(PLAYLIST)
+	$(PY) -m content.app $(PLAYLIST) --raw-socket $(RAW)
 
 # --- Editor de playlist con preview en vivo (herramienta del lado panel) ------
 # Abrir http://127.0.0.1:8090 — al guardar, la app recarga sola
@@ -85,8 +87,10 @@ help:
 	@echo "make vectors  - regenera vectors/*.mem para los testbenches"
 	@echo "make video    - baja el video de ejemplo (CC-BY) a media/"
 	@echo "make app      - publica la playlist como fuente viva (content/app.py)"
+	@echo "                MJPEG en 127.0.0.1:8080 + vínculo directo unix:$(RAW)"
 	@echo "make demo     - demo mínima del transporte (Pillow crudo, sin Timeline)"
 	@echo "make editor   - editor de playlist con preview en vivo (http://127.0.0.1:8090)"
-	@echo "make view PLAYLIST=examples/playlist_live.json - consume la fuente viva"
+	@echo "make view PLAYLIST=examples/playlist_live.json - consume la fuente viva por red"
+	@echo "make view PLAYLIST=examples/playlist_directo.json - vínculo directo local (sin códec)"
 	@echo "make clean    - borra artefactos de salida"
 	@echo "make distclean- borra tambien el venv"

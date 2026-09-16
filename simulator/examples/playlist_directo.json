@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "display": {
+    "width": 256,
+    "height": 128,
+    "depth": 5,
+    "gamma": 2.2,
+    "background": "#000000"
+  },
+  "slides": [
+    {
+      "type": "live",
+      "url": "unix:/tmp/billboard.sock",
+      "fps": 30,
+      "duration": 3600
+    }
+  ]
+}

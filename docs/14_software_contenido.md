@@ -94,6 +94,8 @@ La app de PC manda **frames RGB888 de 256×128**, uno detrás del otro, y el pan
 
 Por qué RGB y no bitplanes: la app no debe cambiar cuando se mueve la profundidad de color del panel, y el presupuesto de red es trivial para cartelería (98 KB por frame, ~24 Mbit/s en el peor caso a 30 fps). Mandar bitplanes queda como posible v2 si algún enlace lo pide.
 
+Para desarrollo, el simulador acepta además un **vínculo directo** por socket Unix (`unix:/ruta.sock`): los mismos frames RGB888 crudos, sin códec ni ffmpeg, con app y panel en la misma máquina. No es un transporte de producción; existe para comparar fidelidad contra el camino de red y para ahorrar CPU mientras se itera.
+
 ## Qué no hacer todavía
 
 **La UI de autoría.** Es lo más visible y lo más tentador, pero es lo más barato de cambiar y lo último que se necesita. Mientras la playlist sea un archivo declarativo editable a mano, la UI es un lujo. Si aparece, que sea un editor de ese archivo con preview del simulador — nunca una aplicación con su propio modelo de datos paralelo. (Existe un editor mínimo que cumple exactamente eso: `panel_sim/editor.py`, edita el archivo con preview del pipeline del panel.)

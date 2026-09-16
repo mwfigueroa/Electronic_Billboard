@@ -4,11 +4,16 @@ Timeline + un loop + un publicador MJPEG. Respeta los horarios de la
 playlist, recarga el archivo en caliente si cambia y expone ``/status`` para
 supervisión (frames, errores, slide actual, antigüedad del último cuadro).
 
+Además de MJPEG sirve el **vínculo directo** en un socket Unix (cuadros RGB
+crudos, sin códec; ``rawlink.py``): el panel lo consume bit a bit cuando está
+en la misma máquina.
+
 Uso:
     python -m content.app examples/playlist.json --port 8080
     make app
 Panel:
-    make view PLAYLIST=examples/playlist_live.json
+    make view PLAYLIST=examples/playlist_live.json      # por red (MJPEG)
+    make view PLAYLIST=examples/playlist_directo.json   # vínculo directo
 """
 
 from __future__ import annotations
@@ -26,6 +31,7 @@ import numpy as np
 from PIL import Image
 
 from .playlist import PlaylistError, load
+from .rawlink import RawSocketServer
 from .timeline import Timeline
 
 DEFAULT_SIZE = (256, 128)
@@ -49,7 +55,9 @@ class Publisher:
         self.frames = 0
         self.errors = 0
         self.last_frame_at: float | None = None
+        self.raw_socket: str | None = None
         self._jpeg = _encode_jpeg(np.zeros((DEFAULT_SIZE[1], DEFAULT_SIZE[0], 3), dtype=np.uint8))
+        self._raw: bytes | None = None
         self._lock = threading.Lock()
         self._playlist_mtime: float | None = None
         self._last_reload_check = 0.0
@@ -88,6 +96,14 @@ class Publisher:
         return True
 
     # --- producción de frames ------------------------------------------------
+    @property
+    def size(self) -> tuple[int, int]:
+        """Tamaño del canvas publicado (el que anuncia el vínculo directo)."""
+        if self.timeline is not None:
+            display = self.timeline.playlist.display
+            return display.width, display.height
+        return DEFAULT_SIZE
+
     def _blank(self) -> np.ndarray:
         if self.timeline is not None:
             display = self.timeline.playlist.display
@@ -102,8 +118,10 @@ class Publisher:
             else:
                 frame = self.timeline.frame(time.monotonic() - self.started)
             jpeg = _encode_jpeg(frame)
+            raw = np.ascontiguousarray(frame).tobytes()
             with self._lock:
                 self._jpeg = jpeg
+                self._raw = raw
                 self.frames += 1
                 self.last_frame_at = time.monotonic()
         except Exception as exc:   # noqa: BLE001 — la app no se cae por un cuadro
@@ -130,6 +148,11 @@ class Publisher:
         with self._lock:
             return self._jpeg
 
+    def raw(self) -> bytes | None:
+        """Último cuadro RGB888 crudo (None hasta el primer ``step``)."""
+        with self._lock:
+            return self._raw
+
     def status(self) -> dict:
         with self._lock:
             frames = self.frames
@@ -154,6 +177,7 @@ class Publisher:
             "jpeg_bytes": size,
             "playlist": str(self.path),
             "playlist_error": self.error,
+            "raw_socket": self.raw_socket,
             "slides_total": len(playlist.slides) if playlist is not None else 0,
             "slides_active": len(active),
             "current_slide": found[0] if found else None,
@@ -231,6 +255,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--fps", type=float, default=30.0)
+    parser.add_argument("--raw-socket", default="/tmp/billboard.sock",
+                        help="socket Unix del vínculo directo (vacío = desactivado)")
     parser.add_argument("--no-stream", action="store_true",
                         help="solo componer (sin servidor); para pruebas")
     args = parser.parse_args(argv)
@@ -240,6 +266,17 @@ def main(argv: list[str] | None = None) -> int:
         publisher.run()
         return 0
 
+    raw_server = None
+    if args.raw_socket:
+        raw_server = RawSocketServer(publisher, args.raw_socket, fps=args.fps)
+        try:
+            raw_server.start()
+        except RuntimeError as exc:
+            print(f"aviso: vínculo directo desactivado: {exc}")
+            raw_server = None
+        else:
+            publisher.raw_socket = str(raw_server.path)
+
     server = serve(publisher, args.host, args.port, fps=args.fps)
     producer = threading.Thread(target=publisher.run, daemon=True)
     producer.start()
@@ -247,12 +284,17 @@ def main(argv: list[str] | None = None) -> int:
     print("app de contenido · contrato de wire v1 (docs/14)")
     print(f"  stream: http://{args.host}:{args.port}/stream.mjpg")
     print(f"  estado: http://{args.host}:{args.port}/status")
-    print("  panel:  make view PLAYLIST=examples/playlist_live.json")
+    if raw_server is not None:
+        print(f"  directo: unix:{raw_server.path} (make view PLAYLIST=examples/playlist_directo.json)")
+    else:
+        print("  panel:  make view PLAYLIST=examples/playlist_live.json")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        if raw_server is not None:
+            raw_server.close()
         server.server_close()
     return 0
 

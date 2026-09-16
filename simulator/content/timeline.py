@@ -28,6 +28,7 @@ from .playlist import (
     VideoSlide,
     is_active,
 )
+from .rawlink import RawSocketSource
 from .video import VideoSource
 
 
@@ -169,10 +170,13 @@ class Timeline:
             display = self.playlist.display
             size = (display.width, display.height)
             if isinstance(slide, LiveSlide):
-                source = VideoSource(
-                    slide.url, size, fps=slide.fps, live=True,
-                    input_args=slide.input_args,
-                )
+                if slide.url.startswith("unix:"):
+                    source = RawSocketSource(slide.url, size, fps=slide.fps)
+                else:
+                    source = VideoSource(
+                        slide.url, size, fps=slide.fps, live=True,
+                        input_args=slide.input_args,
+                    )
             else:
                 source = VideoSource(
                     slide.path, size, fps=slide.fps, loop=slide.loop,

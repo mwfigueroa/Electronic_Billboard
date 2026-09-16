@@ -159,6 +159,7 @@ make view PLAYLIST=examples/playlist_live.json    # el panel lo consume
 | MJPEG/HTTP (autodetectado) | `{"url": "http://host/stream.mjpg"}` |
 | rawvideo sobre UDP | `{"url": "udp://127.0.0.1:5000", "format": "rawvideo", "size": "256x128"}` |
 | Ventana X11 | `{"url": ":0.0+0,0", "format": "x11grab", "size": "256x128"}` |
+| Vínculo directo (socket Unix) | `{"url": "unix:/tmp/billboard.sock"}` |
 
 La **app de referencia** es `content/app.py` (`make app`, con
 `PLAYLIST=...` opcional): compone la playlist con el mismo `Timeline` del
@@ -175,6 +176,22 @@ expone estado para supervisión:
 dibuja con Pillow crudo a propósito, para mostrar que cualquier lenguaje o
 framework puede publicar el contrato sin conocer el proyecto. No es la app.
 Si el stream se corta, el panel reintenta la conexión cada 2 s.
+
+### Vínculo directo (misma máquina)
+
+Con app y panel en la misma máquina, `make app` publica además los cuadros
+RGB888 **crudos** en un socket Unix (`--raw-socket`, por defecto
+`/tmp/billboard.sock`): sin códec ni ffmpeg, el panel recibe bit a bit lo que
+la app compuso. Es el camino de mayor fidelidad —sirve para comparar contra
+el JPEG del stream— y el más barato en CPU.
+
+```bash
+make app                                          # MJPEG + unix:/tmp/billboard.sock
+make view PLAYLIST=examples/playlist_directo.json # el panel, sin códec
+```
+
+No es un transporte de producción (no cruza máquinas): si la app no está, el
+panel queda en negro y reintenta cada 2 s, igual que con el stream.
 
 ## Editor de playlist
 
