@@ -14,11 +14,11 @@ El cartel debe ser **autónomo** — [`06_control_contenido.md`](06_control_cont
 |---|---|---|
 | Diseño y layout | Sí | No |
 | Render de texto, fuentes e imágenes | **Sí** | No |
-| Cuantización y corrección de gamma | Sí | No |
+| Cuantización y corrección de gamma | No | **Sí** |
 | Playlist y horarios | Define | **Ejecuta** |
 | Composición de elementos dinámicos | No | Sí (reloj) |
 
-**Principio rector: la PC manda frames terminados, no instrucciones de dibujo.** El cartel es un reproductor tonto y confiable.
+**Principio rector: la PC manda píxeles, no instrucciones de dibujo.** El cartel es un reproductor tonto y confiable; la gamma y la cuantización quedan de su lado porque dependen del panel, no del contenido (contrato de wire v1).
 
 Nada de motores de layout, decodificación de imágenes ni rasterizado de fuentes corriendo sobre un VexRiscv. Es donde estos proyectos se empantanan, y no compra nada: el contenido de cartelería cambia cada varios segundos, no cada frame.
 
@@ -31,20 +31,19 @@ Componer sprites es trivial. Rasterizar fuentes no. La frontera se traza ahí.
 ## Capas del pipeline
 
 ```
-Playlist declarativa (JSON)
+Playlist declarativa (JSON)               ┐
+        ↓                                 │
+Composición → canvas RGB888 256 × 128     │ app de PC
+        ↓                                 │
+[ contrato de wire v1: RGB888 ]  ←────────┘ frontera PC ↔ panel
         ↓
-Composición → canvas RGB888 256 × 128
-        ↓
-Gamma + cuantización a N bits
-        ↓
-Serialización a bitplanes
-        ↓
-[ formato de wire ] ←─── el contrato
-        ↓
-FPGA
+Gamma + cuantización a N bits             ┐
+Serialización a bitplanes                 │ panel
+        ↓                                 │ (el simulador implementa el lado
+FPGA                                      ┘  panel y es la referencia)
 ```
 
-Cada capa es una **función pura**: sin reloj, sin red, sin estado global. Eso las hace testeables sin hardware, que es la propiedad que permite construir todo esto antes de que llegue nada de China.
+Cada capa es una **función pura**: sin reloj, sin red, sin estado global. Eso las hace testeables sin hardware, que es la propiedad que permite construir todo esto antes de que llegue nada de China. Con el contrato v1, gamma, cuantización y bitplanes corren en el panel; el simulador los implementa para el preview y para generar los vectores dorados del HDL.
 
 ### La serialización existe dos veces
 
@@ -80,7 +79,20 @@ Se define inmediatamente después del simulador, y es **lo único que se trata c
 
 Todo lo que está por encima se puede reescribir libremente mientras el contrato aguante. El contrato en cambio es caro de cambiar, porque vive simultáneamente en el HDL, en el firmware de contenido y en la herramienta de la PC.
 
-Debe definir como mínimo: dimensiones, orden de bytes, profundidad, si transporta RGB o bitplanes ya serializados, y cómo se enmarca una actualización de contenido frente a un frame.
+### v1 — frames RGB888 por transporte estándar (decidido)
+
+La app de PC manda **frames RGB888 de 256×128**, uno detrás del otro, y el panel hace gamma, cuantización, bitplanes y refresco. La profundidad de color y la gamma quedan del lado del panel: la app no necesita saber nada de LED.
+
+| | |
+|---|---|
+| Frame | 256×128 px, RGB888 entrelazado por píxel (R,G,B), fila por fila = 98.304 bytes |
+| Cadencia | hasta 30 fps; si el panel se atrasa descarta cuadros y sigue el último |
+| Transporte 1 | **MJPEG sobre HTTP** (estándar de cámaras IP): la app sirve `multipart/x-mixed-replace` |
+| Transporte 2 | **rawvideo sobre UDP**: `-f rawvideo -pixel_format rgb24 -video_size 256x128 -i udp://host:puerto` |
+| Transporte 3 | **X11**: la app dibuja en una ventana de 256×128 y el panel captura con `x11grab` |
+| Implementación de referencia | slide `live` del simulador (`../simulator/`, app de ejemplo incluida) |
+
+Por qué RGB y no bitplanes: la app no debe cambiar cuando se mueve la profundidad de color del panel, y el presupuesto de red es trivial para cartelería (98 KB por frame, ~24 Mbit/s en el peor caso a 30 fps). Mandar bitplanes queda como posible v2 si algún enlace lo pide.
 
 ## Qué no hacer todavía
 
@@ -90,7 +102,7 @@ Debe definir como mínimo: dimensiones, orden de bytes, profundidad, si transpor
 
 ## Decisiones abiertas
 
-- Si el wire transporta RGB y el FPGA serializa, o si la PC manda bitplanes ya armados. Lo segundo simplifica el HDL y carga a la PC; lo primero deja la profundidad de color configurable sin recompilar el bitstream.
+- ~~Si el wire transporta RGB y el FPGA serializa, o si la PC manda bitplanes ya armados~~ — **resuelto para v1: la PC manda RGB888**; bitplanes queda como posible v2.
 - Formato de la playlist declarativa.
 - Si el cartel guarda la playlist en la SPI flash o en la SDRAM con respaldo.
 - Cómo se maneja la conmutación de contenido sin tearing — se relaciona con el doble buffer del presupuesto de memoria de [`11`](11_arquitectura_colorlight_5a75b.md).

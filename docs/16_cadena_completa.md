@@ -9,7 +9,7 @@ Es la referencia de la fase "reproducir en electrónica lo que el simulador mues
 ```mermaid
 flowchart TB
     subgraph Content["Fuente / contenido"]
-        PC["PC de autoría<br/>video · playlist · composición<br/>gamma 2.2 + cuantización a 5 bits"]
+        PC["PC de autoría<br/>video · playlist · composición<br/>frames RGB888 256×128"]
     end
 
     subgraph Net["Enlace"]
@@ -22,7 +22,7 @@ flowchart TB
         SoC["LiteX SoC · VexRiscv<br/>playlist · horarios · NTP"]
         Flash["SPI flash 25Q32JVSIQ<br/>4 MB"]
         DRAM["LiteDRAM → SDRAM M12L64322A<br/>8 MB · framebuffer RGB888"]
-        Conv["conversión a bitplanes<br/>ubicación según contrato de wire"]
+        Conv["rgb_to_bitplane<br/>gamma 2.2 + cuantización"]
         Store["bitplane_store — BRAM 60 KB<br/>5 bits por color"]
         Seq["bcm_sequencer + scan_mapper<br/>lockstep · 2048 clocks de datos por bitplane"]
         Ser["8 × hub75_serializer"]
@@ -31,7 +31,7 @@ flowchart TB
 
     Panel["16 módulos P5 320×160<br/>8 cadenas × 2 · 64×32 px · scan 1/8"]
 
-    PC -->|"contrato de wire: RGB888 o bitplanes (abierto)"| AP
+    PC -->|"contrato de wire v1: RGB888 256×128"| AP
     AP -->|"1000BASE-T"| PHY
     PHY -->|"RGMII"| MAC
     MAC -->|"Wishbone"| SoC
@@ -88,7 +88,7 @@ Lo ya verificado en [`../simulator/`](../simulator/README.md) es lo que hay que 
 
 | Simulador | Bloque de hardware | Número verificado |
 |---|---|---|
-| `quantize` | `rgb_to_bitplane` (PC o FPGA, según contrato de wire) | `duty = (v/255)^γ`, γ 2.2 |
+| `quantize` | `rgb_to_bitplane` (FPGA, contrato v1) | `duty = (v/255)^γ`, γ 2.2 |
 | `bitplanes.py` (layout `[bit][canal][y][x]`) | `bitplane_store` (BRAM) | 5 bits/color · 60 KB = 48 % de BRAM |
 | `timing.refresh_hz` | `bcm_sequencer` | 2080 clocks/bitplane (2048 de datos + blanking) → 193,9 Hz @ 12,5 MHz, medido |
 | máscara LED (gap 0.65, circular) | máscara física del módulo P5 | LED ≈ ⅓ del paso · pitch 5 mm |
@@ -96,7 +96,7 @@ Lo ya verificado en [`../simulator/`](../simulator/README.md) es lo que hay que 
 
 ## Condicionantes abiertos
 
-- **Contrato de wire**: ¿la PC manda RGB888 o bitplanes ya serializados? Cambia dónde vive la conversión (gamma, cuantización y armado de bitplanes). [`14`](14_software_contenido.md).
+- ~~**Contrato de wire**: ¿la PC manda RGB888 o bitplanes ya serializados?~~ — resuelto en v1: la PC manda **RGB888 de 256×128** y la conversión (gamma, cuantización y armado de bitplanes) vive en el FPGA. Mandar bitplanes queda como posible v2. [`14`](14_software_contenido.md).
 - **Familia del IC driver del módulo**: si es S-PWM interno (MBI5153/FM6353), el modelo BCM no aplica y el protocolo es otro. [`08`](08_hub75e_y_panel_p5.md).
 - **Mapeo de scan 1/8**: la incógnita principal del driver; se resuelve en el Paso 2 del bring-up. [`11`](11_arquitectura_colorlight_5a75b.md).
 - **Revisión de placa**: comprar 8.0 u 8.2; otra revisión implica otro pinout y otro archivo de plataforma LiteX.
