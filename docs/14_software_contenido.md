@@ -1,6 +1,6 @@
 # 14 — Modelo del software de contenido
 
-> **Estado: núcleo implementado.** El pipeline descrito acá vive en [`../simulator/`](../simulator/README.md): playlist → canvas → gamma y cuantización → PNG, visor animado y vectores dorados de bitplanes. Las decisiones abiertas de la sección final siguen abiertas. Complementa a [`11_arquitectura_colorlight_5a75b.md`](11_arquitectura_colorlight_5a75b.md), que cubre el lado FPGA.
+> **Estado: núcleo implementado.** El pipeline descrito acá vive en [`../simulator/`](../simulator/README.md), separado en dos paquetes por la frontera del contrato: `content/` (lado app: playlist, composición y la app de publicación, con horarios, recarga en caliente y `/status`) y `panel_sim/` (lado panel: gamma, bitplanes, visor y vectores dorados). Las decisiones abiertas de la sección final siguen abiertas. Complementa a [`11_arquitectura_colorlight_5a75b.md`](11_arquitectura_colorlight_5a75b.md), que cubre el lado FPGA.
 
 ## Alcance
 

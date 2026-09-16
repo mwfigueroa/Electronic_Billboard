@@ -77,11 +77,12 @@ El cableado de potencia 5 V es idéntico en ambas: una fuente por fila con dos i
 │   ├── 14_software_contenido.md Modelo del software de contenido (PC y cartel)
 │   ├── 15_notas_tecnicas.md     Observaciones de diseño y bitácora de bring-up
 │   └── 16_cadena_completa.md    Cadena fuente → display de la ruta 5A-75B (integración)
-├── simulator/                 Simulador de panel (docs/14): pipeline de contenido, PNG y visor
-│   ├── README.md              Uso, esquema de playlist y convenciones (gamma, bitplanes)
-│   ├── Makefile               make test / render / view / vectors
-│   ├── panel_sim/             Paquete Python (playlist, canvas, gamma, bitplanes, render, visor)
-│   ├── examples/              Playlist de ejemplo y logo
+├── simulator/                 App de contenido + simulador de panel (docs/14)
+│   ├── README.md              Uso, esquema de playlist (con horarios) y convenciones
+│   ├── Makefile               make test / app / demo / render / view / vectors
+│   ├── content/               Lado app: playlist, composición, video y publicación en vivo
+│   ├── panel_sim/             Lado panel: gamma, bitplanes, visor y vectores dorados
+│   ├── examples/              Playlists de ejemplo, logo y escena
 │   ├── tests/                 Tests del pipeline (pytest)
 │   └── vectors/               Vectores dorados para los testbenches del HDL
 ├── .githooks/                 pre-commit: tests de simulator/ y driver-5a75b/
