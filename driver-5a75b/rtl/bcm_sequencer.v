@@ -16,6 +16,9 @@
 //       pulso de LAT en el medio y avance de `addr`/`row` al final.
 //       Canal de datos detenido (CLK gateado por shift_en en el serializador).
 //
+// `oe` es un display-enable ACTIVO ALTO interno (1 = fila encendida). El pin
+// OE de HUB75 es activo bajo, así que el top lo invierte al sacarlo (docs/08).
+//
 // Además, OE queda en bajo durante el primer clock de cada paso: la
 // dirección cambia en el flanco anterior y así tiene un clock completo de
 // asentamiento antes de que la fila se encienda (criterio de docs/11:

@@ -1,10 +1,10 @@
 # Driver propio — Colorlight 5A-75B
 
 Bloques HDL del driver de panel de
-[`docs/11_arquitectura_colorlight_5a75b.md`](../docs/11_arquitectura_colorlight_5a75b.md).
-La carpeta crece con el plan de bring-up; por ahora tiene los bloques que se
-pueden validar **sin placa**: la conversión RGB→bitplanes contra los vectores
-dorados del simulador y la temporización BCM/HUB75.
+[`docs/11_arquitectura_colorlight_5a75b.md`](../docs/11_arquitectura_colorlight_5a75b.md),
+más un top de integración sintetizable. Todo lo que se puede validar **sin
+placa** ya está: conversión contra vectores, temporización BCM/HUB75, store y
+la cadena completa con bitstream.
 
 ## Bloques
 
@@ -79,11 +79,45 @@ pasos por pasada, un `LAT` por paso, `OE` en bajo en cada `LAT` y en cada
 cambio de dirección/fila, los pesos 1-2-4-8-16 y el refresco medido. No
 valida el mapeo de píxeles: eso es del `scan_mapper`, que necesita el panel.
 
+## Top de integración y `.lpf`
+
+`rtl/top.v` encadena todo: un generador de patrón escribe el frame una vez
+tras el reset (R = x, G ≈ y, B damero), el conversor lo pasa a bitplanes, el
+store lo guarda y el secuenciador lo emite por los ocho serializadores con
+las señales compartidas. Un latido de frame sale por los dos candidatos a LED
+de usuario (T6/P11, la disputa que resuelve `blinky-5a75b`).
+
+Es un top de bring-up, no el driver final: el mapeo de lectura es un
+**placeholder** (`y = row`, `x = pix`), los ocho puertos reciben el mismo
+dato y R1/R2 usan el mismo píxel. Todo eso lo define el `scan_mapper` con el
+panel (Paso 2). Corre a 25 MHz: 5 bits por color → 388 Hz de refresco.
+
+El pin `OE` sale **invertido** respecto del display-enable interno del
+secuenciador: el de HUB75 es activo bajo (`0` enciende la fila, `docs/08`).
+El testbench lo fija contra el pin: fila encendida durante el shift —salvo el
+clock de asentamiento— y apagada en el blanking y durante `LAT`.
+
+`constraints/colorlight_5a75b_v8.lpf` tiene los 60 pines (54 de HUB75 + los
+dos LED + clock + botón) desde `docs/12 §2`, con la aclaración de nombres
+R0/R1 de chubby75 vs R1/R2 de HUB75.
+
+```bash
+make sim        # los 4 testbenches (vectores, temporización, store, top)
+make bitstream  # top.bit (yosys → nextpnr → ecppack)
+make prog       # carga a SRAM por JTAG (volátil, no toca la flash)
+make stats      # recursos de los bloques y del top
+```
+
+Medido en el top: **181 LUT4 (1 %), 131 FF, 71,7 MHz máximos** (PASS a
+25 MHz), 60 I/O de 197. El BRAM del top reporta 15 bloques DP16KD en vez de
+los 30 del store: con el mapeo placeholder yosys poda las direcciones que
+nunca se leen; con la lectura completa (mapeo real) vuelve a 30, como la
+medición standalone.
+
 ## Pendientes
 
-Sin placa: el `.lpf` completo de los 56 pines HUB75 desde el pinout de
-`docs/12 §2` y la integración de los cuatro bloques en un top de prueba.
-
-Con placa: el Paso 0 del bring-up y el `scan_mapper` (Paso 2, la incógnita
-principal). La cadena completa está en
+Con placa: el Paso 0 del bring-up (revisión, respaldo de flash, blinky real) y
+el `scan_mapper` (Paso 2, la incógnita principal). Después vienen el `bitplane_store`
+de doble buffer si el contenido lo pide, LiteX/LiteDRAM/LiteEth (Paso 5) y el
+`.lpf`/top definitivos. La cadena completa está en
 [`docs/16_cadena_completa.md`](../docs/16_cadena_completa.md).
