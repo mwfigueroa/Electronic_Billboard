@@ -4,6 +4,62 @@ Vista de integración de la **ruta del driver propio** (Colorlight 5A-75B), desd
 
 Es la referencia de la fase "reproducir en electrónica lo que el simulador muestra".
 
+## Vista de sistema
+
+Mapa completo: contenido, contrato, control (las dos rutas), panel y potencia,
+con el espejo virtual del banco de desarrollo. El detalle de cada bloque está
+en las secciones siguientes y en [`07`](07_diagrama_bloques.md),
+[`11`](11_arquitectura_colorlight_5a75b.md) y [`14`](14_software_contenido.md).
+
+```mermaid
+flowchart TB
+    subgraph Contenido["Contenido · PC"]
+        App["App de contenido<br/>composición 256×128 · texto · imágenes · video<br/>playlist y horarios"]
+        HD2020["PC con HD2020 / HDSign"]
+    end
+
+    subgraph Banco["Espejo virtual · banco de desarrollo"]
+        PanelVirtual["Simulador: mismo pipeline que el panel<br/>gamma 2.2 · 5 bits · máscara LED · distancia<br/>vectores dorados → validan el HDL"]
+    end
+
+    subgraph Control["Control — dos rutas (misma potencia y panel)"]
+        Huidu["Puesta en marcha: Huidu HD-WF4<br/>4× HUB75E · 4 cadenas de 4 módulos"]
+        subgraph FPGA["Driver propio: Colorlight 5A-75B — ECP5-25"]
+            SoC["Eth PHY RTL8211FD → LiteEth → LiteX SoC<br/>framebuffer en SDRAM 8 MB ↔ LiteDRAM (Paso 5)"]
+            Camino["rgb_to_bitplane → bitplane_store (BRAM 60 KB)<br/>bcm_sequencer + scan_mapper → 8× hub75_serializer<br/>12× 74HC245T (3,3 V → 5 V)"]
+        end
+    end
+
+    subgraph Panel["Panel — 16 módulos P5 320×160 (64×32 px, scan 1/8)"]
+        Modulos["4 filas × 2 cadenas de 2 módulos = 256×128 px<br/>IC driver sin confirmar: define el protocolo"]
+    end
+
+    subgraph Potencia["Potencia (idéntica en ambas rutas)"]
+        AC["220 V CA → seccionador → diferencial 30 mA → breaker 2P 10 A<br/>SPD tipo 2 → PE (gabinete y estructura)"]
+        PSU["4 × LRS-350-5 · 5 V / 60 A (una por fila)<br/>2 ramas 12 AWG con fusible 20 A · 0 V en punto estrella"]
+    end
+
+    App -->|"contrato de wire v1: RGB888 256×128<br/>MJPEG/HTTP · UDP · x11grab (docs/14)"| PanelVirtual
+    App -.->|"mismo contrato, objetivo"| SoC
+    HD2020 -->|"WiFi / USB"| Huidu
+    SoC --> Camino
+    Camino -->|"HUB75E · R1…B2 · A/B/C · CLK · LAT · OE (activo bajo)"| Modulos
+    Huidu -->|"HUB75E"| Modulos
+    AC --> PSU
+    PSU -->|"+5 V por fila"| Modulos
+```
+
+Estado de cada tramo:
+
+| Elemento | Estado | Depende de |
+|---|---|---|
+| App de contenido | por desarrollar | — (contrato v1 ya definido) |
+| Panel virtual (simulador) | hecho y verificado | — |
+| Bloques HDL del driver (5) | hechos y validados en simulación | — |
+| `scan_mapper` | pendiente | el panel físico (Paso 2) |
+| LiteX / LiteEth / LiteDRAM | pendiente | Paso 5 |
+| Panel, fuentes y estructura | pendiente | compras de Fase 1 |
+
 ## Datos: fuente → panel
 
 ```mermaid
