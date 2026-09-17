@@ -31,6 +31,7 @@ make test        # pytest
 make hooks       # activa el pre-commit del repo (tests si el commit toca simulator/)
 make app         # publica la playlist como fuente viva (MJPEG en 127.0.0.1:8080)
 make editor      # editor web con preview en vivo (http://127.0.0.1:8090)
+make clips       # genera los clips de ejemplo: pauta publicitaria y placa de IA
 make render      # out/00_text.png, out/01_text.png, … con píxeles visibles
 make view        # visor animado (requiere display)
 make vectors     # regenera vectors/ para los testbenches

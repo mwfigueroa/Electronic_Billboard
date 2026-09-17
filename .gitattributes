@@ -17,6 +17,9 @@
 *.rar   binary
 *.step  binary
 *.stp   binary
+*.mp4   binary
+*.webm  binary
+*.mov   binary
 
 # Artefactos de FPGA.
 *.bit   binary

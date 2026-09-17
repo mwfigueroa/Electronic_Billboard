@@ -13,7 +13,7 @@ RAW     ?= /tmp/billboard.sock
 VIDEO_URL := https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4
 MEDIA   := media/sintel_10s.mp4
 
-.PHONY: all venv test render view vectors video app demo editor hooks clean distclean help
+.PHONY: all venv test render view vectors video clips app demo editor hooks clean distclean help
 
 all: test render
 
@@ -51,6 +51,11 @@ video: venv
 	curl -fsSL -o $(MEDIA) $(VIDEO_URL)
 	@echo "listo: $(MEDIA) — probar con make view PLAYLIST=examples/playlist_video.json"
 
+# --- Clips de ejemplo generados (pauta publicitaria y placa de IA) -----------
+# Sin red: se dibujan con Pillow y ffmpeg solo codifica.
+clips: venv
+	$(PY) -m content.clips --out-dir examples/videos
+
 # --- App de contenido (contrato de wire v1, docs/14) -------------------------
 # Publica la playlist como fuente viva: horarios, recarga en caliente, /status
 # y vínculo directo por socket Unix (cuadros crudos, sin códec).
@@ -86,6 +91,7 @@ help:
 	@echo "                Ej.: make view ARGS=\"--panel-distance 5 --monitor-inch 32 --monitor-px 1920 --eye-cm 60\""
 	@echo "make vectors  - regenera vectors/*.mem para los testbenches"
 	@echo "make video    - baja el video de ejemplo (CC-BY) a media/"
+	@echo "make clips    - genera los clips de ejemplo (videos/pauta.mp4 y videos/ia.mp4)"
 	@echo "make app      - publica la playlist como fuente viva (content/app.py)"
 	@echo "                MJPEG en 127.0.0.1:8080 + vínculo directo unix:$(RAW)"
 	@echo "make demo     - demo mínima del transporte (Pillow crudo, sin Timeline)"

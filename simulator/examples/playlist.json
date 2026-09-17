@@ -10,7 +10,7 @@
   "slides": [
     {
       "type": "text",
-      "text": " Martin Figueroa",
+      "text": "Tinchosky!!!",
       "size": 25,
       "color": "#e26a6a",
       "duration": 4,
@@ -34,6 +34,18 @@
       "type": "image",
       "path": "escena.png",
       "duration": 6
+    },
+    {
+      "type": "video",
+      "path": "videos/pauta.mp4",
+      "duration": 10,
+      "loop": true
+    },
+    {
+      "type": "video",
+      "path": "videos/ia.mp4",
+      "duration": 10,
+      "loop": true
     },
     {
       "type": "clock",
