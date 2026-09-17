@@ -198,10 +198,12 @@ panel queda en negro y reintenta cada 2 s, igual que con el stream.
 
 `make editor` levanta un editor web local (sin dependencias) sobre la
 playlist: lista los slides con sus campos, permite agregar/mover/borrar,
-subir imágenes, previsualizar el **pipeline real del panel** (gamma +
-cuantización) por MJPEG —incluso un slide puntual con el botón `ver`— y
-guardar **validado** (un documento inválido se puede seguir editando, pero no
-se escribe).
+subir imágenes y videos (`imagenes/` y `videos/` junto a la playlist),
+previsualizar el **pipeline real del panel** (gamma + cuantización) por MJPEG
+—incluso un slide puntual con el botón `ver`— y guardar **validado** (un
+documento inválido se puede seguir editando, pero no se escribe). Un slide de
+video recién agregado pide su archivo antes de guardar, y si una ruta no
+existe el preview muestra un placeholder en vez de cortarse.
 
 El circuito completo queda cerrado sin reiniciar nada: el editor guarda → la
 app ve el mtime y recarga en caliente → el panel virtual lo muestra. El

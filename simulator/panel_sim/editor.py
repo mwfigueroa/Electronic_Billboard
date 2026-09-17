@@ -28,13 +28,17 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from content.playlist import PlaylistError, parse
+from content.canvas import new_canvas, paste_aligned, text_image
+from content.playlist import DEFAULT_FONT, PlaylistError, parse
 from content.timeline import Timeline
+from content.video import VideoError
 
 from .quantize import quantize, to_display
 
 PREVIEW_FPS = 10.0
 DEFAULT_SIZE = (256, 128)
+VIDEO_SUFFIXES = {".mp4", ".webm", ".mov", ".m4v", ".mkv", ".avi"}
+_PREVIEW_ERRORS = (PlaylistError, VideoError, OSError, ValueError)
 SKELETON = {
     "version": 1,
     "display": {
@@ -48,6 +52,17 @@ def _encode_jpeg(frame: np.ndarray) -> bytes:
     buf = io.BytesIO()
     Image.fromarray(frame).save(buf, "JPEG", quality=85)
     return buf.getvalue()
+
+
+def _missing_frame(width: int, height: int) -> np.ndarray:
+    """Placeholder visible: la ruta no existe (mejor que cortar el preview)."""
+    canvas = new_canvas(width, height, (40, 0, 0))
+    img = text_image(
+        "FALTA ARCHIVO", DEFAULT_FONT, max(10, height // 8), (255, 96, 96),
+        align="center",
+    )
+    paste_aligned(canvas, img, "center", "middle")
+    return np.asarray(canvas, dtype=np.uint8)
 
 
 class EditorState:
@@ -64,6 +79,7 @@ class EditorState:
         self.dirty = False
         self._timeline: Timeline | None = None
         self._lock = threading.Lock()
+        self._warned: set[str] = set()
         self._t0 = time.monotonic()
         self._apply(dirty=False)
 
@@ -131,17 +147,28 @@ class EditorState:
             return np.zeros((DEFAULT_SIZE[1], DEFAULT_SIZE[0], 3), dtype=np.uint8)
         now = datetime.now()
         t = time.monotonic() - self._t0
-        if slide is not None and 0 <= slide < len(timeline.playlist.slides):
-            chosen = timeline.playlist.slides[slide]
-            return timeline.frame_at(slide, t % chosen.duration, now)
-        return timeline.frame(t, now)
+        try:
+            if slide is not None and 0 <= slide < len(timeline.playlist.slides):
+                chosen = timeline.playlist.slides[slide]
+                return timeline.frame_at(slide, t % chosen.duration, now)
+            return timeline.frame(t, now)
+        except _PREVIEW_ERRORS as exc:
+            # una ruta tipeada a mano que no existe no debe cortar el stream:
+            # se muestra un placeholder y se avisa una vez por mensaje
+            message = str(exc)
+            if message not in self._warned:
+                self._warned.add(message)
+                print(f"preview: {message}")
+            display = timeline.playlist.display
+            return _missing_frame(display.width, display.height)
 
     def upload(self, filename: str, data: bytes) -> str:
-        name = Path(filename).name or "imagen.png"
-        target = self.path.parent / "imagenes" / name
+        name = Path(filename).name or "archivo"
+        folder = "videos" if Path(name).suffix.lower() in VIDEO_SUFFIXES else "imagenes"
+        target = self.path.parent / folder / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
-        return f"imagenes/{name}"
+        return f"{folder}/{name}"
 
 
 class EditorHandler(BaseHTTPRequestHandler):

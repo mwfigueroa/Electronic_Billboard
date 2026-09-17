@@ -82,8 +82,8 @@ const SCHEDULE = [["desde", "Desde (HH:MM)"], ["hasta", "Hasta (HH:MM)"],
                   ["dias", "Días (lun,mar,…)"]];
 const SKELETONS = {
   text: {type: "text", text: "NUEVO", size: 24, color: "#ffffff", duration: 5},
-  image: {type: "image", path: "imagenes/ejemplo.png", duration: 5},
-  video: {type: "video", path: "video.mp4", duration: 10},
+  image: {type: "image", duration: 5},
+  video: {type: "video", duration: 10},
   live: {type: "live", url: "http://127.0.0.1:8080/stream.mjpg", fps: 30, duration: 3600},
   clock: {type: "clock", format: "%H:%M:%S", size: 48, color: "#ffffff", duration: 8},
   color: {type: "color", color: "#102040", duration: 2},
@@ -182,13 +182,15 @@ function scheduleField(slide, key, label) {
 }
 
 function uploader(slide) {
+  const video = slide.type === "video";
   const wrap = document.createElement("div");
   wrap.className = "field";
   const lab = document.createElement("label");
-  lab.textContent = "Subir archivo";
+  lab.textContent = video ? "Subir video" : "Subir imagen";
   wrap.appendChild(lab);
   const input = document.createElement("input");
   input.type = "file";
+  input.accept = video ? "video/*" : "image/*";
   input.onchange = async () => {
     const file = input.files[0];
     if (!file) return;
@@ -200,9 +202,15 @@ function uploader(slide) {
       slide.path = json.path;
       render();
       push();
+    } else {
+      alert(json.error || "no se pudo subir el archivo");
     }
   };
   wrap.appendChild(input);
+  const hint = document.createElement("span");
+  hint.className = "muted";
+  hint.textContent = video ? "mp4/webm/mov → videos/" : "png/jpg → imagenes/";
+  wrap.appendChild(hint);
   return wrap;
 }
 

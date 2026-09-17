@@ -64,8 +64,29 @@ def test_editor_upload(tmp_path):
     relative = state.upload("logo.png", b"\x89PNGdatos")
     assert relative == "imagenes/logo.png"
     assert (tmp_path / "imagenes" / "logo.png").read_bytes() == b"\x89PNGdatos"
+    # videos a su propia carpeta, sin importar mayúsculas de la extensión
+    assert state.upload("clip.MP4", b"mp4") == "videos/clip.MP4"
+    assert (tmp_path / "videos" / "clip.MP4").read_bytes() == b"mp4"
     # nombres con ruta no escapan del directorio
     assert state.upload("../../etc/passwd", b"x") == "imagenes/passwd"
+
+
+def test_editor_preview_no_se_rompe_si_falta_el_archivo(tmp_path):
+    path = tmp_path / "pl.json"
+    path.write_text(json.dumps({
+        "version": 1,
+        "display": {"width": 256, "height": 128, "depth": 5, "gamma": 2.2},
+        "slides": [
+            {"type": "image", "path": "imagenes/no-existe.png", "duration": 5},
+            {"type": "video", "path": "videos/no-existe.mp4", "duration": 5},
+        ],
+    }), encoding="utf-8")
+    state = EditorState(path)
+    assert state.error is None          # el documento es válido…
+    for slide in (0, 1):
+        frame = state.frame(slide=slide)   # …pero el archivo no está
+        assert frame.shape == (128, 256, 3)
+        assert frame.max() > 0             # placeholder, no excepción
 
 
 def test_editor_http(tmp_path):
