@@ -14,47 +14,70 @@ en las secciones siguientes y en [`07`](07_diagrama_bloques.md),
 ```mermaid
 flowchart TB
     subgraph Contenido["Contenido · PC"]
-        App["App de contenido<br/>composición 256×128 · texto · imágenes · video<br/>playlist y horarios"]
-        HD2020["PC con HD2020 / HDSign"]
+        Editor["Editor de playlist<br/>panel_sim/editor.py · preview del pipeline"]
+        App["App de contenido — content/app.py<br/>playlist JSON + horarios → composición 256×128<br/>/status · recarga en caliente"]
+        HD2020["PC con HD2020 / HDSign<br/>contenido cargado en la controladora"]
     end
 
-    subgraph Banco["Espejo virtual · banco de desarrollo"]
-        PanelVirtual["Simulador: mismo pipeline que el panel<br/>gamma 2.2 · 5 bits · máscara LED · distancia<br/>vectores dorados → validan el HDL"]
+    Wire["contrato de wire v1 — RGB888 256×128 · 98.304 B por cuadro<br/>MJPEG/HTTP · UDP rawvideo · x11grab · socket Unix · ≤ 30 fps"]
+
+    subgraph Banco["Banco · espejo virtual (sin hardware)"]
+        Sim["panel_sim — gamma 2.2 · cuantización 5 bits<br/>bitplanes · máscara LED · distancia equivalente"]
+        Vec["vectores dorados<br/>frame_rgb888.mem · gamma_lut_2p2_5b.mem · 15 planos"]
     end
 
-    subgraph Control["Control — dos rutas (misma potencia y panel)"]
-        Huidu["Puesta en marcha: Huidu HD-WF4<br/>4× HUB75E · 4 cadenas de 4 módulos"]
-        subgraph FPGA["Driver propio: Colorlight 5A-75B — ECP5-25"]
-            SoC["Eth PHY RTL8211FD → LiteEth → LiteX SoC<br/>framebuffer en SDRAM 8 MB ↔ LiteDRAM (Paso 5)"]
-            Camino["rgb_to_bitplane → bitplane_store (BRAM 60 KB)<br/>bcm_sequencer + scan_mapper → 8× hub75_serializer<br/>12× 74HC245T (3,3 V → 5 V)"]
+    subgraph Control["Control — dos rutas (mismo panel, misma potencia)"]
+        Huidu["Puesta en marcha: Huidu HD-WF4<br/>firmware de fábrica · 4× HUB75E"]
+        subgraph FPGA["Driver propio: Colorlight 5A-75B — ECP5 LFE5U-25F"]
+            SoC["LiteEth + LiteX SoC · playlist, horarios, NTP<br/>pendiente — Paso 5"]
+            DRAM["LiteDRAM → SDRAM 8 MB · framebuffer RGB888<br/>pendiente — Paso 5"]
+            Conv["rgb_to_bitplane · LUT gamma 2.2 → 5 bits"]
+            Store["bitplane_store · BRAM 60 KB · 30/56 DP16KD"]
+            Map["scan_mapper · mapeo del scan 1/8<br/>pendiente — Paso 2, necesita el panel"]
+            Seq["bcm_sequencer + 8× hub75_serializer<br/>2.080 clocks/bitplane → 193,9 Hz @ 12,5 MHz"]
+            Buf["12× 74HC245T · 3,3 V → 5 V"]
         end
     end
 
-    subgraph Panel["Panel — 16 módulos P5 320×160 (64×32 px, scan 1/8)"]
-        Modulos["4 filas × 2 cadenas de 2 módulos = 256×128 px<br/>IC driver sin confirmar: define el protocolo"]
-    end
+    Panel["16 módulos P5 320×160 (64×32 px, scan 1/8)<br/>4 filas × 4 columnas → 256×128 px · 1.280×640 mm<br/>IC driver sin confirmar: define el protocolo"]
 
     subgraph Potencia["Potencia (idéntica en ambas rutas)"]
         AC["220 V CA → seccionador → diferencial 30 mA → breaker 2P 10 A<br/>SPD tipo 2 → PE (gabinete y estructura)"]
         PSU["4 × LRS-350-5 · 5 V / 60 A (una por fila)<br/>2 ramas 12 AWG con fusible 20 A · 0 V en punto estrella"]
     end
 
-    App -->|"contrato de wire v1: RGB888 256×128<br/>MJPEG/HTTP · UDP · x11grab (docs/14)"| PanelVirtual
-    App -.->|"mismo contrato, objetivo"| SoC
-    HD2020 -->|"WiFi / USB"| Huidu
-    SoC --> Camino
-    Camino -->|"HUB75E · R1…B2 · A/B/C · CLK · LAT · OE (activo bajo)"| Modulos
-    Huidu -->|"HUB75E"| Modulos
+    Editor -->|"guarda · la app ve el mtime"| App
+    App --> Wire
+    HD2020 -->|"WiFi / USB — no cruza el contrato"| Huidu
+    Wire --> Sim
+    Wire -.->|"mismo contrato, objetivo (Paso 5)"| SoC
+    Sim -->|"genera"| Vec
+    Vec -->|"valida el HDL · 1.920 comparaciones"| Conv
+    SoC --> DRAM
+    DRAM -->|"solo al cambiar de slide · ~12 KB/s"| Conv
+    Conv --> Store
+    Store -->|"lectura del refresco · desde BRAM"| Map
+    Map --> Seq
+    Seq -->|"los 8 puertos en lockstep"| Buf
+    Huidu -->|"HUB75E · 4 cadenas de 4 módulos"| Panel
+    Buf -->|"HUB75E · 8 cadenas de 2 módulos<br/>R1…B2 por puerto · A/B/C · CLK · LAT · OE (activo bajo)"| Panel
     AC --> PSU
-    PSU -->|"+5 V por fila"| Modulos
+    PSU -->|"+5 V por fila · hasta 655 W"| Panel
 ```
+
+Los tres bloques marcados como pendientes son los que todavía no existen:
+`LiteEth`/`LiteX` y `LiteDRAM` entran en el Paso 5, y el `scan_mapper` necesita
+el panel físico (Paso 2). El enlace `App → SoC` va punteado por lo mismo: hoy
+la app alimenta el panel virtual, y el HDL se valida contra los vectores que
+ese mismo pipeline genera. La alimentación de la controladora —el ramal de
+2 A— está en la sección de potencia de abajo y en [`07`](07_diagrama_bloques.md).
 
 Estado de cada tramo:
 
 | Elemento | Estado | Depende de |
 |---|---|---|
-| App de contenido | por desarrollar | — (contrato v1 ya definido) |
-| Panel virtual (simulador) | hecho y verificado | — |
+| App de contenido (`content/`) | hecha: playlist, horarios, transporte y editor | — |
+| Panel virtual (`panel_sim/`) | hecho y verificado | — |
 | Bloques HDL del driver (5) | hechos y validados en simulación | — |
 | `scan_mapper` | pendiente | el panel físico (Paso 2) |
 | LiteX / LiteEth / LiteDRAM | pendiente | Paso 5 |
