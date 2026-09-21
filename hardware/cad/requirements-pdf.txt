@@ -1,0 +1,2 @@
+# Render de la ficha HTML a PDF, independiente del Python de FreeCAD.
+weasyprint==70.0

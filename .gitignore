@@ -22,3 +22,10 @@ __pycache__/
 .ruff_cache/
 simulator/out/
 simulator/media/
+
+# CAD: el modelo se regenera con hardware/cad/monoposte.py
+hardware/cad/build/
+
+# Bloqueos de SolidWorks y backups de FreeCAD: nunca al repo
+~$*
+*.FCBak
