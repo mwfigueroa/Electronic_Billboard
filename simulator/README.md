@@ -23,6 +23,23 @@ Es software puro. Responde *"cómo se vería esto en la pantalla"* y nada más:
   refresco (ghosting, flicker de bits bajos, latencia de scan). Eso es hardware
   o simulación HDL — ver [`docs/15_notas_tecnicas.md`](../docs/15_notas_tecnicas.md).
 
+## Arranque rápido
+
+```bash
+cd simulator && make live                 # app en segundo plano + visor por vínculo directo
+make live PLAYLIST=examples/playlist_horarios.json
+make live ARGS="--panel-distance 5 --monitor-inch 32 --monitor-px 1920"
+```
+
+`Q` en el visor cierra todo. Mientras corre: `http://127.0.0.1:8080/status` para
+ver cuadros/errores/slide actual, y `make editor` en otra terminal para editar la
+playlist con recarga en caliente. En WSLg no hace falta tocar `DISPLAY` ni el
+audio: el visor detecta WSL, descarta un `DISPLAY` que no contesta el handshake
+X11 (p. ej. un `export DISPLAY=<ip>:0.0` viejo de VcXsrv en `.bashrc`) y usa el
+socket local `:0`, con `SDL_AUDIODRIVER=dummy` porque el init de audio de SDL
+sobre WSLg puede colgar `pygame.init()`. Si se cuelga igual, `make view
+ARGS="--frames 60"` con `SDL_VIDEODRIVER=dummy` es el smoke test sin ventana.
+
 ## Instalación y uso
 
 ```bash
@@ -75,12 +92,15 @@ panel se vería más apagado que el real. A la distancia de emulación (p. ej.
 5 m) el LED real es sub-píxel en el monitor: el visor lo avisa y muestra el
 panel sin máscara, que es lo físicamente correcto.
 
-En WSLg el visor fuerza `SDL_VIDEODRIVER=x11` con render por software: SDL se
-cuelga al abrir la ventana sin `/dev/dri`. Si el entorno define esas variables
-a mano, el visor no las pisa. Además, si `DISPLAY` apunta a la IP del host
-(modo mirrored) y ese camino no responde, cae al socket local `:0` — es el
-mismo servidor —, y si X no contesta en 20 s sale con un mensaje en vez de
-quedarse colgado en silencio.
+En WSLg el visor fuerza `SDL_VIDEODRIVER=x11` con render por software (SDL se
+cuelga al abrir la ventana sin `/dev/dri`) y `SDL_AUDIODRIVER=dummy` (el visor
+no emite sonido, y el init de audio de SDL sobre el Pulse/ALSA de WSLg puede
+bloquear `pygame.init()` para siempre). Si el entorno define esas variables a
+mano, el visor no las pisa. Además, si `DISPLAY` apunta a la IP del host (modo
+mirrored, o un `export DISPLAY=<ip>:0.0` heredado de VcXsrv en `.bashrc`) y ese
+servidor no **contesta el handshake X11** —aceptar el TCP no alcanza—, cae al
+socket local `:0`, que es el mismo servidor de WSLg; y si X no contesta en 20 s
+sale con un mensaje en vez de quedarse colgado en silencio.
 
 ## Playlist
 

@@ -13,7 +13,7 @@ RAW     ?= /tmp/billboard.sock
 VIDEO_URL := https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4
 MEDIA   := media/sintel_10s.mp4
 
-.PHONY: all venv test render view vectors video clips app demo editor hooks clean distclean help
+.PHONY: all venv test render view vectors video clips app demo editor live hooks clean distclean help
 
 all: test render
 
@@ -62,6 +62,16 @@ clips: venv
 app: venv
 	$(PY) -m content.app $(PLAYLIST) --raw-socket $(RAW)
 
+# --- Arranque rápido: app + visor por vínculo directo, en un comando ----------
+# La app queda en segundo plano (log en /tmp/billboard-app.log) y el visor en
+# primer plano; al cerrar el visor (Q) se apaga la app. En WSLg el visor corrige
+# solo DISPLAY y audio. Ej.: make live PLAYLIST=examples/playlist_horarios.json
+live: venv
+	@PYTHONUNBUFFERED=1 $(PY) -m content.app $(PLAYLIST) --raw-socket $(RAW) > /tmp/billboard-app.log 2>&1 & \
+	echo $$! > /tmp/billboard-app.pid; sleep 2; \
+	$(PY) -m panel_sim.viewer examples/playlist_directo.json $(ARGS); \
+	kill $$(cat /tmp/billboard-app.pid) 2>/dev/null; rm -f /tmp/billboard-app.pid
+
 # --- Editor de playlist con preview en vivo (herramienta del lado panel) ------
 # Abrir http://127.0.0.1:8090 — al guardar, la app recarga sola
 editor: venv
@@ -96,6 +106,7 @@ help:
 	@echo "                MJPEG en 127.0.0.1:8080 + vínculo directo unix:$(RAW)"
 	@echo "make demo     - demo mínima del transporte (Pillow crudo, sin Timeline)"
 	@echo "make editor   - editor de playlist con preview en vivo (http://127.0.0.1:8090)"
+	@echo "make live     - app + visor por vínculo directo en un comando; Q en el visor apaga todo"
 	@echo "make view PLAYLIST=examples/playlist_live.json - consume la fuente viva por red"
 	@echo "make view PLAYLIST=examples/playlist_directo.json - vínculo directo local (sin códec)"
 	@echo "make clean    - borra artefactos de salida"

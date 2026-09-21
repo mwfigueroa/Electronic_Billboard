@@ -1,7 +1,13 @@
 import os
+import socket
+import threading
+import time
 
 import numpy as np
 from panel_sim.viewer import (
+    _configure_wsl_video,
+    _display_reachable,
+    _en_wsl,
     _gap_geometry,
     layout_panel,
     pixel_dot_array,
@@ -101,3 +107,84 @@ def test_render_surface_applies_mask():
     masked = render_surface(frame, (16, 8), black, 2)
     assert masked.get_at((0, 0))[:3] == (0, 0, 0)
     pygame.quit()
+
+
+def _servidor(sock, responde: bool):
+    """Acepta una conexión y contesta un byte, o se queda mudo (X trabado)."""
+    sock.listen(1)
+
+    def loop():
+        conn, _ = sock.accept()
+        try:
+            if responde:
+                conn.recv(64)
+                conn.sendall(b"\x01")
+            else:
+                time.sleep(2)
+        finally:
+            conn.close()
+
+    threading.Thread(target=loop, daemon=True).start()
+    return sock
+
+
+def test_display_reachable_when_x_answers(tmp_path):
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    srv.bind(str(tmp_path / "X7"))
+    with _servidor(srv, responde=True):
+        assert _display_reachable(":7", timeout=1.0, x11_dir=str(tmp_path))
+
+
+def test_display_accepting_but_silent_is_dead(tmp_path):
+    """El caso WSL mirrored: el TCP/socket acepta y X nunca contesta."""
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    srv.bind(str(tmp_path / "X8"))
+    with _servidor(srv, responde=False):
+        assert not _display_reachable(":8", timeout=0.3, x11_dir=str(tmp_path))
+
+
+def test_display_tcp_silent_is_dead():
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    port = srv.getsockname()[1]
+    with _servidor(srv, responde=False):
+        assert not _display_reachable("127.0.0.1:0", timeout=0.3, base_port=port)
+
+
+def test_display_missing_is_dead(tmp_path):
+    assert not _display_reachable(":9", timeout=0.3, x11_dir=str(tmp_path))
+    assert not _display_reachable("no-es-un-display", timeout=0.3)
+
+
+def test_wsl_video_defaults_disable_audio(monkeypatch):
+    """pygame.init() se cuelga en el audio de WSLg; el visor no lo usa."""
+    monkeypatch.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    for var in ("SDL_AUDIODRIVER", "SDL_VIDEODRIVER", "DISPLAY", "LIBGL_ALWAYS_SOFTWARE"):
+        monkeypatch.delenv(var, raising=False)
+    _configure_wsl_video()
+    assert os.environ["SDL_AUDIODRIVER"] == "dummy"
+    assert os.environ["SDL_VIDEODRIVER"] == "x11"
+    assert os.environ["LIBGL_ALWAYS_SOFTWARE"] == "1"
+
+
+def test_wsl_video_respects_user_audio_choice(monkeypatch):
+    monkeypatch.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    monkeypatch.setenv("SDL_AUDIODRIVER", "pulseaudio")
+    monkeypatch.delenv("DISPLAY", raising=False)
+    _configure_wsl_video()
+    assert os.environ["SDL_AUDIODRIVER"] == "pulseaudio"
+
+
+def test_en_wsl_by_kernel_or_wslg_without_env(monkeypatch, tmp_path):
+    for var in ("WSL_DISTRO_NAME", "WSL_INTEROP"):
+        monkeypatch.delenv(var, raising=False)
+    linux = tmp_path / "version"
+    linux.write_text("Linux version 6.6.0 (gcc) #1 SMP")
+    assert not _en_wsl(proc_version=str(linux), wslg_dir=str(tmp_path / "no-wslg"))
+    wsl = tmp_path / "version-wsl"
+    wsl.write_text("Linux version 6.6.87.1-microsoft-standard-WSL2")
+    assert _en_wsl(proc_version=str(wsl), wslg_dir=str(tmp_path / "no-wslg"))
+    (tmp_path / "wslg").mkdir()
+    assert _en_wsl(proc_version=str(linux), wslg_dir=str(tmp_path / "wslg"))
+    monkeypatch.setenv("WSL_INTEROP", "/run/WSL/1_interop")
+    assert _en_wsl(proc_version=str(linux), wslg_dir=str(tmp_path / "no-wslg"))

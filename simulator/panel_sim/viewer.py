@@ -31,6 +31,7 @@ import argparse
 import os
 import signal
 import socket
+import struct
 import sys
 import threading
 import time
@@ -50,29 +51,64 @@ HUD_HEIGHT = 24
 STARTUP_TIMEOUT_S = 20.0
 
 
-def _display_reachable(display: str, timeout: float = 1.5) -> bool:
-    """Prueba corta de conexión al socket de X, sin hablar protocolo."""
+# Pedido de conexión X11 (12 bytes): orden little-endian, protocolo 11.0, sin
+# autorización. Cualquier byte de respuesta —éxito o rechazo— prueba que hay un
+# servidor X hablando del otro lado.
+_X11_SETUP = struct.pack("<BxHHHHxx", 0x6C, 11, 0, 0, 0)
+
+
+def _display_reachable(
+    display: str,
+    timeout: float = 1.5,
+    *,
+    x11_dir: str = "/tmp/.X11-unix",
+    base_port: int = 6000,
+) -> bool:
+    """El servidor X **contesta** al pedido de conexión dentro del timeout.
+
+    Un ``connect`` solo no alcanza: en WSL con red *mirrored*, un ``DISPLAY``
+    viejo que apunta a la IP del host acepta el TCP y después no habla, y el
+    visor quedaba colgado en el primer evento sin caer al socket local. Con el
+    handshake, ese caso cuenta como display muerto.
+    """
     try:
         spec = display.removeprefix("unix:")
         if spec.startswith(":"):
             number = int(spec[1:].split(".")[0])
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             sock.settimeout(timeout)
-            sock.connect(f"/tmp/.X11-unix/X{number}")
+            sock.connect(f"{x11_dir}/X{number}")
         else:
             host, _, rest = spec.partition(":")
             number = int(rest.split(".")[0] or "0")
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(timeout)
-            sock.connect((host, 6000 + number))
-        sock.close()
-        return True
+            sock.connect((host, base_port + number))
+        try:
+            sock.sendall(_X11_SETUP)
+            reply = sock.recv(1)
+        finally:
+            sock.close()
+        return bool(reply)
     except (OSError, ValueError):
         return False
 
 
+def _en_wsl(proc_version: str = "/proc/version", wslg_dir: str = "/mnt/wslg") -> bool:
+    """WSL por variables de entorno, o por el kernel y WSLg si el entorno viene
+    recortado (sudo, cron, una shell de herramienta): las variables no son fiables."""
+    if "WSL_DISTRO_NAME" in os.environ or "WSL_INTEROP" in os.environ:
+        return True
+    try:
+        if "microsoft" in Path(proc_version).read_text(encoding="utf-8", errors="replace").lower():
+            return True
+    except OSError:
+        pass
+    return os.path.isdir(wslg_dir)
+
+
 def _configure_wsl_video() -> None:
-    """Ajustes para WSLg: X11 + software, y rescate del socket local.
+    """Ajustes para WSLg: X11 + software, audio apagado, y rescate del socket local.
 
     En WSLg conviene X11 con render por software (SDL se cuelga sin /dev/dri).
     Además, con redes en modo mirrored el ``DISPLAY`` por defecto apunta a la
@@ -80,7 +116,10 @@ def _configure_wsl_video() -> None:
     socket local ``:0``, que es el mismo servidor. No pisa lo que el usuario
     haya definido salvo en ese rescate.
     """
-    if not ("WSL_DISTRO_NAME" in os.environ or "WSL_INTEROP" in os.environ):
+    # El visor no emite sonido, y en WSLg el init de audio de SDL (Pulse/ALSA
+    # por RDP) puede bloquear ``pygame.init()`` indefinidamente.
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    if not _en_wsl():
         return
     driver = os.environ.get("SDL_VIDEODRIVER")
     if driver is None:

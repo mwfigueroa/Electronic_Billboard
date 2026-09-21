@@ -110,7 +110,15 @@ def test_socket_huerfano_se_recicla(tmp_path):
     server.start()
     source = RawSocketSource(f"unix:{sock}", (256, 128))
     try:
-        assert source.frame_latest().tobytes() == publisher.raw()
+        # el hilo del server manda el primer cuadro justo tras el encabezado;
+        # si todavía no tuvo turno, frame_latest() devuelve negro: esperar
+        limite = time.monotonic() + 2.0
+        while time.monotonic() < limite:
+            frame = source.frame_latest()
+            if frame.tobytes() == publisher.raw():
+                break
+            time.sleep(0.02)
+        assert frame.tobytes() == publisher.raw()
     finally:
         source.close()
         server.close()

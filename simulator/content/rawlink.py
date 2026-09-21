@@ -189,10 +189,17 @@ class RawSocketSource:
             self._sock = None
         self._retry_at = time.monotonic() + self.retry_s
 
-    def _drain(self) -> None:
+    def _drain(self, espera: float = 0.0) -> None:
+        """Lee lo que haya. Hasta que entra el primer cuadro completo espera
+        como mucho ``espera`` s (el hilo de la app lo manda justo tras el
+        encabezado, pero puede no haber tenido turno todavía); después nunca
+        bloquea: si el panel se atrasa, descarta cuadros enteros."""
         assert self._sock is not None
+        limite = time.monotonic() + espera
         while True:
-            ready, _, _ = select.select([self._sock], [], [], 0)
+            sin_cuadro = self._last is None and len(self._buf) < self._frame_bytes
+            restante = max(0.0, limite - time.monotonic()) if sin_cuadro else 0.0
+            ready, _, _ = select.select([self._sock], [], [], restante)
             if not ready:
                 break
             try:
@@ -219,7 +226,7 @@ class RawSocketSource:
         if self._sock is None and not self._connect():
             return self._last if self._last is not None else self._black()
         try:
-            self._drain()
+            self._drain(espera=0.5 if self._last is None else 0.0)
         except OSError:
             self._disconnect()
         if self._last is not None:
