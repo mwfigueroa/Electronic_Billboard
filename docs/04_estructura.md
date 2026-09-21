@@ -1,5 +1,12 @@
 # 04 — Estructura y montaje en fachada
 
+> **Documento superado.** La configuración adoptada es el gabinete en voladizo
+> sobre **mástil con brazo lateral**: gabinete en [`17_montaje_y_proteccion.md`](17_montaje_y_proteccion.md)
+> y soporte con fundación en [`18_monoposte.md`](18_monoposte.md). Se conserva como
+> registro de la alternativa a fachada; su gabinete de 160 mm, su bastidor de
+> aluminio 40×40 y sus anclajes químicos no aplican al diseño vigente. El cálculo
+> de viento de abajo sigue siendo referencia de método.
+
 ## Gabinete
 
 | Parámetro | Valor |

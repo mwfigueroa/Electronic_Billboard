@@ -24,6 +24,13 @@
 
 ## Fase 2 — Estructura (1 semana)
 
+> Configuración vigente: gabinete R2 y mástil con brazo R2.1
+> ([`17`](17_montaje_y_proteccion.md), [`18`](18_monoposte.md)). Los pasos de
+> abajo describen el gabinete de fachada original; el orden de obra real es:
+> muestra del módulo → cálculo firmado y estudio de suelos → taller (bastidor de
+> acero, envolvente, brazo soldado al montante, brida) → prueba de extracción de
+> módulos en banco.
+
 - [ ] Corte de perfiles según plano del `04_estructura.md`
 - [ ] Armado de bastidor (escuadras + tornillería inox, verificar escuadre con diagonal)
 - [ ] Fijación de rieles de módulos (paso 160 mm entre centros de fila, longitud 1280 mm)
@@ -53,6 +60,12 @@
 - [ ] Mantener HD2020 / HDSign como ruta de puesta en marcha. El driver propio se desarrolla en banco sobre una **Colorlight 5A-75B** independiente, sin tocar la HD-WF4 de producción. Ver [`11_arquitectura_colorlight_5a75b.md`](11_arquitectura_colorlight_5a75b.md).
 
 ## Fase 5 — Sellado e instalación (1–2 días)
+
+> Con mástil ([`18`](18_monoposte.md)): fundación con plantilla de pernos y reserva
+> de conducto → curado según procedimiento de obra → izar el mástil, aplomar con
+> las tuercas y grout → izar el conjunto gabinete + brazo (≈ 90 kg) con medios de
+> elevación y bulonar la brida → PE, jabalina, acometida y mediciones. Los
+> anclajes M10 de abajo son de la alternativa a fachada.
 
 - [ ] Re-torque de tornillería de módulos y fuentes
 - [ ] Sellado final de pasacables y fijaciones

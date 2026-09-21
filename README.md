@@ -2,7 +2,7 @@
 
 Proyecto de fabricación de cartel electrónico LED full-color para exterior (fachada), destinado a promoción de una empresa de tecnología.
 
-> Estado: **Fase 1 — Diseño y compras** · Documentación v1.1 — plataforma del driver propio decidida ([`docs/10_plataforma_driver.md`](docs/10_plataforma_driver.md))
+> Estado (2026-09-21): **diseño y anteproyecto completos** — software de contenido y emulador (147 tests), driver HDL validado contra vectores dorados, y mecánica de mástil con brazo (R2.1) verificada en CAD, todo sin hardware. **Pendiente**: muestra de Fase 0 (IC driver, fijación, IP del módulo), estudio de suelos, ordenanza y cálculo firmado, y el `scan_mapper` que necesita el panel — ver [`docs/05`](docs/05_fabricacion_fases.md), [`18`](docs/18_monoposte.md) y [`19`](docs/19_costos_argentina.md).
 
 ## Especificaciones resumidas
 
@@ -12,13 +12,13 @@ Proyecto de fabricación de cartel electrónico LED full-color para exterior (fa
 | Configuración | 4 × 4 módulos P5 outdoor SMD (320×160 mm c/u) |
 | Resolución | 256 × 128 px (32.768 px) |
 | Brillo | > 4500 nits declarados; validar visibilidad a pleno sol |
-| Protección | Uso exterior declarado; confirmar IP del panel. Gabinete IP54 |
+| Protección | Uso exterior declarado; confirmar IP del panel. Gabinete: objetivo IP54, a ensayar (docs/17) |
 | Distancia mín. de visualización | ~5 m |
 | Contenido | Logo, texto, animaciones compatibles, reloj (programación por horarios) |
 | Control (producción) | Huidu HD-WF4 (asíncrono, WiFi + USB, 4× HUB75) — HD2020 / HDSign |
 | Control (driver propio) | Colorlight 5A-75B — FPGA Lattice ECP5-25, 8× HUB75, toolchain abierto |
 | Alimentación | 220 V CA → 4× fuentes 5 V/60 A (Meanwell LRS-350-5), una por fila |
-| Presupuesto objetivo | USD 500–1000 (estimado: ~754 puesta en marcha, ~807 con driver propio; sin envío ni impuestos) |
+| Presupuesto | Materiales importables ~USD 574 FOB (docs/02); proyecto completo con mástil, fundación, instalación y honorarios: USD 5.450–6.590 al MEP de sept. 2026, suponiendo venta por corte de tubos (docs/19) |
 
 ## Arquitectura del sistema
 
@@ -76,7 +76,10 @@ El cableado de potencia 5 V es idéntico en ambas: una fuente por fila con dos i
 │   ├── 13_bom_desarrollo.md     Hardware de banco para desarrollar el driver
 │   ├── 14_software_contenido.md Modelo del software de contenido (PC y cartel)
 │   ├── 15_notas_tecnicas.md     Observaciones de diseño y bitácora de bring-up
-│   └── 16_cadena_completa.md    Cadena fuente → display de la ruta 5A-75B (integración)
+│   ├── 16_cadena_completa.md    Cadena fuente → display de la ruta 5A-75B (integración)
+│   ├── 17_montaje_y_proteccion.md Gabinete LED · revisión constructiva R2
+│   ├── 18_monoposte.md          Mástil con brazo lateral, fundación y altura libre · R2.1
+│   └── 19_costos_argentina.md   Estimación de costos en pesos, mercado argentino (sept. 2026)
 ├── simulator/                 App de contenido + simulador de panel (docs/14)
 │   ├── README.md              Uso, esquema de playlist (con horarios) y convenciones
 │   ├── Makefile               make test / app / demo / render / view / vectors
@@ -87,8 +90,53 @@ El cableado de potencia 5 V es idéntico en ambas: una fuente por fila con dos i
 │   └── vectors/               Vectores dorados para los testbenches del HDL
 ├── .githooks/                 pre-commit: tests de simulator/ y driver-5a75b/
 ├── driver-5a75b/              Bloques HDL del driver propio (docs/11) + top de integración y bitstream
-└── hardware/                    (futuro: planos, CAD, fotos)
+├── foto/                      Referencias: módulo P5 (máscara del simulador) y monoposte (docs/18)
+└── hardware/cad/              CAD R2, verificaciones y ficha HTML/PDF (docs/17 y 18)
 ```
+
+### Previa mecánica R2.1
+
+R2.1 adopta tubos comerciales **120 × 120 × 6,35 mm para el mástil** y
+**120 × 120 × 4,75 mm para el brazo**. El gabinete conserva su revisión R2.
+
+La revisión constructiva del soporte y gabinete está en
+[`docs/17`](docs/17_montaje_y_proteccion.md) y [`docs/18`](docs/18_monoposte.md).
+Los entregables regenerables están en `hardware/cad/build/` (**no está en git**:
+se genera localmente con los comandos de abajo): `especificaciones_cartel.{pdf,html,md}`,
+`monoposte.FCStd`, `monoposte.step`, siete vistas y los documentos de costos
+(`costos_cartel`, `bom_cartel` y `bom_desarrollo`, en MD/HTML/PDF).
+Incluyen correcciones geométricas y observaciones pendientes; no son planos
+estructurales liberados para fabricar.
+
+Desde una terminal de Windows con FreeCAD 1.1 instalado:
+
+```bat
+"C:\Program Files\FreeCAD 1.1\bin\freecad.exe" P:\Billboard\hardware\cad\vistas.py
+"C:\Program Files\FreeCAD 1.1\bin\python.exe" P:\Billboard\hardware\cad\medir.py
+"C:\Program Files\FreeCAD 1.1\bin\python.exe" P:\Billboard\hardware\cad\verificar_step.py
+"C:\Program Files\FreeCAD 1.1\bin\python.exe" P:\Billboard\hardware\cad\especificaciones.py
+```
+
+Esperar a que la GUI termine antes de ejecutar los pasos siguientes. La ficha
+comprueba hashes del modelo y las vistas y no acepta un PDF viejo como resultado
+de una generación fallida. El render de vistas usa Pillow; el PDF requiere Edge
+o Chrome. `build/` está excluido de Git: se genera localmente.
+
+Alternativa PDF portable (utilizada para la entrega R2): generar la ficha con
+`especificaciones.py --sin-pdf` en Python de FreeCAD y, en un entorno Python con
+WeasyPrint, ejecutar `python hardware/cad/render_pdf.py`. Dependencias en
+`hardware/cad/requirements-pdf.txt`; en Linux se necesitan las bibliotecas del
+sistema de Pango (en WSL: `python3 -m venv hardware/cad/.venv &&
+hardware/cad/.venv/bin/pip install -r hardware/cad/requirements-pdf.txt`; el
+`.venv` queda ignorado por git). El PDF se publica de forma atómica y su hash queda
+en `build/revision_documental.json`. Con Edge/Chrome el PDF sale sin pie ni
+numeración: Chromium ignora las cajas de margen `@page`.
+
+Los documentos de costos se regeneran sin FreeCAD: `python hardware/cad/render_costos.py`
+convierte `docs/19_costos_argentina.md`, `docs/02_bom.md` y
+`docs/13_bom_desarrollo.md` a MD/HTML/PDF en `build/` (usa WeasyPrint si está
+instalado; si no, Edge o Chrome headless) y deja los hashes de fuentes y
+salidas en `build/costos_render.json`.
 
 ## Fases del proyecto
 
@@ -98,7 +146,7 @@ El cableado de potencia 5 V es idéntico en ambas: una fuente por fila con dos i
 | 2 | Fabricación estructura | 1 sem | Pendiente |
 | 3 | Ensamblado y cableado en banco | 1 sem | Pendiente |
 | 4 | Configuración controlador + contenido | 2–3 días | Pendiente |
-| 5 | Sellado e instalación en fachada | 1–2 días | Pendiente |
+| 5 | Fundación, izaje e instalación del mástil (docs/18) | 1–2 sem con curado | Pendiente |
 | 6 | Test de estrés 24 h y puesta en marcha | 1 día | Pendiente |
 
 ### Track paralelo — driver propio

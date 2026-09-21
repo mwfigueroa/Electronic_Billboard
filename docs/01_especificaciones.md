@@ -15,7 +15,7 @@
 | Color | Full color RGB, SMD 3-in-1 | Scan 1/8 declarado por el vendedor |
 | Refresco | A confirmar; objetivo ≥ 1920 Hz | Pedir valor y configuración de panel al vendedor |
 | Protección frontal | Uso exterior declarado | Confirmar clasificación IP frontal del módulo; no asumir IP65 sin ficha |
-| Protección gabinete | IP54 (trasero ventilado con filtro) | |
+| Protección gabinete | Objetivo IP54 (ventilado con filtros y capotas); grado a ensayar, no declarado desde el CAD — ver [`17`](17_montaje_y_proteccion.md) | |
 
 ## Criterios de diseño
 

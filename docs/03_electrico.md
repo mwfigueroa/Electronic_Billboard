@@ -66,6 +66,24 @@ El driver propio usa otra placa y **otro reparto de cadenas**. Ver [`11_arquitec
 - La cantidad total de cables flat tampoco cambia: 16 en ambas topologías.
 - Cadenas más cortas mejoran la integridad de señal y permiten bajar el clock de píxel manteniendo el refresco.
 
+## Alimentación en la configuración de mástil
+
+Con el cartel sobre mástil ([`18_monoposte.md`](18_monoposte.md)) la línea no sale
+de un tablero dentro del edificio sino que llega enterrada. Lo que cambia respecto
+del diagrama de arriba:
+
+| Tema | Configuración de mástil |
+|---|---|
+| Acometida | 220 V enterrada en caño camisa hasta la base del mástil, con malla de advertencia; la zapata lleva una reserva Ø50 con curva R100 (modelo). Profundidad y camisa según la instalación real. |
+| Subida | Por el interior del mástil, el brazo y el montante de borde (pasos Ø32 en grout, placa base, bridas y montante). El mástil **no lleva registro lateral**: el acceso pasa a una **caja externa de acometida** al pie, a ubicar en el proyecto eléctrico. |
+| Fuentes | Se quedan en el gabinete; los 5 V no bajan por el mástil. |
+| Puesta a tierra | Jabalina Ø16 × 1,5 m propia, **fuera de la zapata**, con caja de inspección; su resistencia se mide en obra. Mástil, brazo, bastidor, carcasa, puertas y fuentes con conductor PE dedicado — la brida, la bisagra y las uniones mecánicas no cuentan como PE. |
+| Sobretensiones | El SPD tipo 2 pasa de recomendable a **necesario**: mástil metálico aislado con 220 V. |
+| Diferencial | 30 mA obligatorio en el tablero de origen; protecciones coordinadas con este documento. |
+
+Las mediciones de abajo valen igual; se agrega la **resistencia de la jabalina** y
+la continuidad del PE hasta el gabinete.
+
 ## Mediciones de puesta en marcha
 
 | Medición | Punto | Valor esperado |
